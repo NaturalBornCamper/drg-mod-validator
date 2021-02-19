@@ -1,16 +1,15 @@
 import configparser
+import ctypes
 import filecmp
 import os
+import re
 import sys
 from pathlib import Path
-import re
 
-from pyrotools.console import cprint, COLORS, cpprint
+from pyrotools.console import cprint, COLORS
 
 from constants import MODDED_CONTENT_FOLDER_PATHS, PREVIOUS_CONTENT_FOLDER_PATH, LATEST_CONTENT_FOLDER_PATH, LATEST, \
     PREVIOUS, PATH
-
-import ctypes
 
 unique_modded_files = {}
 modded_files = []
@@ -94,10 +93,9 @@ def find_modded_files_originals(scan_location, version):
 
 def validate_mods():
     global modded_files, unique_modded_files
-    check_valid_folder(settings[LATEST_CONTENT_FOLDER_PATH])
-    find_modded_files_originals(PREVIOUS_CONTENT_FOLDER_PATH, PREVIOUS)
 
     cprint(COLORS.BRIGHT_CYAN, "=" * 10, "Checking your modded files' size against vanilla files", "=" * 10)
+    print("Latest vanilla version in: \"{}\"".format(settings[LATEST_CONTENT_FOLDER_PATH]))
     for modded_file in modded_files:
         print("File:", modded_file.absolute(), end=' ')
         if os.path.getsize(modded_file) == os.path.getsize(unique_modded_files[modded_file.name][LATEST]):
@@ -108,6 +106,8 @@ def validate_mods():
 
 
 def check_latest_update():
+    check_config_value(LATEST_CONTENT_FOLDER_PATH)
+    check_config_value(PREVIOUS_CONTENT_FOLDER_PATH)
     check_valid_folder(settings[LATEST_CONTENT_FOLDER_PATH])
     check_valid_folder(settings[PREVIOUS_CONTENT_FOLDER_PATH])
     find_modded_files_originals(PREVIOUS_CONTENT_FOLDER_PATH, PREVIOUS)
@@ -152,10 +152,15 @@ if __name__ == "__main__":
     scan_modded_files()
 
     # Find path to latest original uexp files
+    check_config_value(LATEST_CONTENT_FOLDER_PATH)
+    check_valid_folder(settings[LATEST_CONTENT_FOLDER_PATH])
     find_modded_files_originals(LATEST_CONTENT_FOLDER_PATH, LATEST)
 
     while True:
-        command = input("Enter \"V\" to validate your mod files, \"U\" to compare updates/hotfixes: ").lower()
+        cprint(COLORS.BRIGHT_MAGENTA, "Choose one of the following options:")
+        cprint(COLORS.BRIGHT_MAGENTA, "(V) Validate your mod files")
+        cprint(COLORS.BRIGHT_MAGENTA, "(U) Compare updates/hotfixes")
+        command = input("Your choice: ").lower()
         if command == "v":
             # Check modded files for size difference (incompatible)
             validate_mods()
