@@ -6,6 +6,8 @@ This utility will save you some time making those verifications for you, so you 
 
 This utility has 2 different functions, described below. **Before using this utility, you must edit the `settings.ini` file!!**
 
+**NOTE**: If your files are deep in your folders, you will need a wide terminal window to see properly
+
 ### Usage 1 - Mod Validator
 Used to check if your modded files reflect the vanilla files, it will:
 1. Recursively scan all the `uexp` files you use in your mods folders
