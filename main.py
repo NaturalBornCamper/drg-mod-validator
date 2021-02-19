@@ -1,6 +1,7 @@
 import configparser
 import ctypes
 import filecmp
+import msvcrt
 import os
 import re
 import sys
@@ -18,6 +19,8 @@ settings = {}
 
 def trigger_error(messsage):
     cprint(COLORS.BRIGHT_RED, messsage)
+    print('Press any key to exit ...')
+    msvcrt.getch()
     sys.exit()
 
 
