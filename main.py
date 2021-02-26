@@ -17,7 +17,6 @@ modded_files = []
 settings = {}
 
 
-# TODO Add settings.ini to optionally hide mods where everything is ok (show only problematic files or "no problem detected" if all good)
 def trigger_error(messsage):
     cprint(COLORS.BRIGHT_RED, messsage)
     print('Press any key to exit ...')
