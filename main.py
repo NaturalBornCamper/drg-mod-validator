@@ -10,13 +10,14 @@ from pathlib import Path
 from pyrotools.console import cprint, COLORS
 
 from constants import MODDED_CONTENT_FOLDER_PATHS, PREVIOUS_CONTENT_FOLDER_PATH, LATEST_CONTENT_FOLDER_PATH, LATEST, \
-    PREVIOUS, PATH
+    PREVIOUS, PATH, MOD_FILE_EXTENSIONS
 
 unique_modded_files = {}
 modded_files = []
 settings = {}
 
 
+# TODO Add settings.ini to optionally hide mods where everything is ok (show only problematic files or "no problem detected" if all good)
 def trigger_error(messsage):
     cprint(COLORS.BRIGHT_RED, messsage)
     print('Press any key to exit ...')
@@ -48,6 +49,11 @@ def check_valid_folder(folder):
         trigger_error("ERROR - \"{}\" is not a valid folder, verify settings.ini file".format(folder))
 
 
+def print_file_result(filename, color, message):
+    print("File:", filename, end=' ')
+    cprint(color, message)
+
+
 def scan_modded_files():
     global unique_modded_files, modded_files
     check_config_value(MODDED_CONTENT_FOLDER_PATHS)
@@ -56,7 +62,8 @@ def scan_modded_files():
     cprint(COLORS.BRIGHT_CYAN, "=" * 10, "Scanning for modded files..", "=" * 10)
     for content_folder_path in config_get_list(settings[MODDED_CONTENT_FOLDER_PATHS]):
         check_valid_folder(content_folder_path)
-        for path in Path(content_folder_path).rglob('*.uexp'):
+        paths = [path for path in Path(content_folder_path).rglob('*') if path.suffix in MOD_FILE_EXTENSIONS]
+        for path in paths:
             print(path)
             modded_files.append(path)
             unique_modded_files[path.name] = {PATH: path}
@@ -99,12 +106,17 @@ def validate_mods():
 
     cprint(COLORS.BRIGHT_CYAN, "=" * 10, "Checking your modded files' size against vanilla files", "=" * 10)
     print("Latest vanilla version in: \"{}\"".format(settings[LATEST_CONTENT_FOLDER_PATH]))
+    all_files_ok = True
     for modded_file in modded_files:
-        print("File:", modded_file.absolute(), end=' ')
         if os.path.getsize(modded_file) == os.path.getsize(unique_modded_files[modded_file.name][LATEST]):
-            cprint(COLORS.BRIGHT_GREEN, "-> Correct size, game should run")
+            if settings.getboolean('VERBOSE_OUTPUT', fallback=True):
+                print_file_result(modded_file.absolute(), COLORS.BRIGHT_GREEN, "-> Correct size, game should run")
         else:
-            cprint(COLORS.BRIGHT_YELLOW, "-> Different size, game will not run")
+            all_files_ok = False
+            print_file_result(modded_file.absolute(), COLORS.BRIGHT_YELLOW, "-> Different size, game will not run")
+
+    if all_files_ok and not settings.getboolean('VERBOSE_OUTPUT', fallback=True):
+        cprint(COLORS.BRIGHT_GREEN, "All files have correct size, game should run")
     cprint(COLORS.BRIGHT_CYAN, "DONE", "\n")
 
 
@@ -118,23 +130,31 @@ def check_latest_update():
     cprint(COLORS.BRIGHT_CYAN, "=" * 10, "Comparing files you need between hotfixes", "=" * 10)
     print("Latest vanilla version in: \"{}\"".format(settings[LATEST_CONTENT_FOLDER_PATH]))
     print(f"Previous vanilla version in: \"{settings[PREVIOUS_CONTENT_FOLDER_PATH]}\"")
+    all_files_ok = True
     for filename, paths in unique_modded_files.items():
-        print("File:", filename, end=' ')
         if LATEST not in paths:
-            cprint(COLORS.BRIGHT_YELLOW, "Modded file \"{}\" missing from \"{}\", skipping".format(
-                filename,
-                settings[LATEST_CONTENT_FOLDER_PATH]
-            ))
+            print_file_result(
+                filename, COLORS.BRIGHT_YELLOW, "-> Modded file \"{}\" missing from \"{}\", skipping".format(
+                    filename,
+                    settings[LATEST_CONTENT_FOLDER_PATH]
+                )
+            )
         elif PREVIOUS not in paths:
-            cprint(COLORS.BRIGHT_YELLOW, "Modded file \"{}\" not found from \"{}\", skipping".format(
-                filename,
-                settings[PREVIOUS_CONTENT_FOLDER_PATH]
-            ))
+            print_file_result(
+                filename, COLORS.BRIGHT_YELLOW, "-> Modded file \"{}\" missing from \"{}\", skipping".format(
+                    filename,
+                    settings[PREVIOUS_CONTENT_FOLDER_PATH]
+                )
+            )
         else:
             if filecmp.cmp(str(paths[LATEST]), str(paths[PREVIOUS])):
-                cprint(COLORS.BRIGHT_GREEN, "-> Files identical, update not needed")
+                if settings.getboolean('VERBOSE_OUTPUT', fallback=True):
+                    print_file_result(filename, COLORS.BRIGHT_GREEN, "-> Files identical, update not needed")
             else:
-                cprint(COLORS.BRIGHT_YELLOW, "-> File has changed, should be updated")
+                all_files_ok = False
+                print_file_result(filename, COLORS.BRIGHT_YELLOW, "-> File has changed, should be updated")
+    if all_files_ok and not settings.getboolean('VERBOSE_OUTPUT', fallback=True):
+        cprint(COLORS.BRIGHT_GREEN, "All files identical, update not needed")
     cprint(COLORS.BRIGHT_CYAN, "DONE", "\n")
 
 
