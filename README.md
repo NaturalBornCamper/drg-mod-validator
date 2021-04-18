@@ -1,5 +1,12 @@
 # Deep Rock Galactic Mod Validator
 
+json definition file = FORWARD SLASHES OR JSON ERRORS
+json definition file = FORWARD SLASHES OR JSON ERRORS
+json definition file = FORWARD SLASHES OR JSON ERRORS
+json definition file = FORWARD SLASHES OR JSON ERRORS
+json definition file = FORWARD SLASHES OR JSON ERRORS
+
+
 ### Introduction
 Got tired of needing to manually check if my mods were still working between hotfixes/updates, or if they were still working but not including the latest changes.
 This utility will save you some time making those verifications for you, so you can set it up then quickly run it after a new hotfix/update is deployed.

@@ -13,8 +13,8 @@ PREVIOUS = 'PREVIOUS_VERSION'
 
 MOD_FILE_EXTENSIONS = ['.uexp', '.uasset']
 
-SUPPORTED_PROPERTIES = ["IntProperty", "FloatProperty", "TextProperty", "ArrayProperty", "StructProperty"]
-SUPPORTED_TAG_DATA = ["FloatProperty", "RandInterval"]
+SUPPORTED_PROPERTY_TYPES = ["IntProperty", "FloatProperty", "TextProperty", "ArrayProperty", "StructProperty"]
+SUPPORTED_PROPERTY_TAG_DATA = ["FloatProperty", "RandInterval"]
 
 VERSION_REGEX = r'u(\d{2}\.\d{1,2})'
 
@@ -26,3 +26,6 @@ class Mod:
     MODDED_FILES = "ModdedFiles"
     ORIGINAL_DATA = "OriginalData"
     MASTER_VERSION = "MasterVersion"
+    OFFSET = "Offset"
+    ORIGINAL_VALUE = "OriginalValue"
+    MODDED_VALUE = "ModdedValue"
