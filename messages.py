@@ -18,8 +18,11 @@ FETCHING_MODDED_FILES = "Scanning for modded files in {}.."
 W_DEFINITION_HAS_FILES = "WARNING - \"{}\" already has files listed in \"{}\" Overwrite?"
 E_WRONG_VERSION = "ERROR - \"{}\" size differs from master file, seems like mod was not created from version {}"
 
+# __generate_mod__()
+GENERATING_MOD = "Generating mod \"{}\" from definition file.."
+
 # __verify_mod__()
-VERIFYING_MOD = "Verifying mod \"{}\" .."
+VERIFYING_MOD = "Verifying mod \"{}\".."
 FILE_SIZE_OK = "-> Correct size, game should run"
 FILE_SIZE_WRONG = "-> Different size, file needs updating"
 ALL_FILE_SIZE_OK = "All modded files have correct size, game should run"

@@ -4,7 +4,7 @@ import os
 import subprocess
 import sys
 from pathlib import Path
-from typing import Dict
+from typing import Dict, Union
 
 from pyrotools.console import cprint, COLORS
 
@@ -32,9 +32,8 @@ def trigger_error(message: str, halt: bool = True) -> None:
         sys.exit()
 
 
-def check_valid_folder(folder: Path) -> None:
-    # if not os.path.isdir(folder):
-    if not folder.is_dir():
+def check_valid_folder(folder: Union[Path, str]) -> None:
+    if not Path(folder).is_dir():
         trigger_error("ERROR - \"{}\" is not a valid folder, verify settings.ini file".format(folder))
 
 

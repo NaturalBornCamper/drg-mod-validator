@@ -1,4 +1,3 @@
-import configparser
 import ctypes
 import filecmp
 import re
@@ -9,12 +8,12 @@ from typing import Dict
 
 from pyrotools.console import cprint, COLORS
 
+import config
 import globals
 import messages as m
-from config import check_config_file, check_config_value, config_get_list
 from constants import PREVIOUS_CONTENT_FOLDER_PATH, LATEST_CONTENT_FOLDER_PATH, LATEST, \
     PREVIOUS, MOD_FILE_EXTENSIONS, DEFINITIONS_FOLDER_LOCATION, Mod, MASTER_CONTENT_FOLDERS, \
-    VERSION_REGEX, SUPPORTED_PROPERTY_TYPES, SUPPORTED_PROPERTY_TAG_DATA
+    VERSION_REGEX, SUPPORTED_PROPERTY_TYPES, SUPPORTED_PROPERTY_TAG_DATA, GENERATED_MODS_OUTPUT_FOLDER
 from property_reader import PropertyReader
 from utils import clear_temp_folder, trigger_error, check_valid_folder, get_file_json_counterpart, load_json_from_file, \
     get_mod_name, print_file_result, \
@@ -23,8 +22,8 @@ from utils import clear_temp_folder, trigger_error, check_valid_folder, get_file
 
 def fetch_master_folders():
     cprint(COLORS.BRIGHT_CYAN, "=" * 10, m.FETCHING_MASTERS, "=" * 10)
-    check_config_value(MASTER_CONTENT_FOLDERS)
-    for master_content_folder in config_get_list(globals.settings[MASTER_CONTENT_FOLDERS]):
+    master_content_folders = config.get_list(MASTER_CONTENT_FOLDERS)
+    for master_content_folder in master_content_folders:
         master_folder_path = Path(master_content_folder)
         check_valid_folder(master_folder_path)
         # TODO Add version support for experimental u33e.5642
@@ -38,14 +37,14 @@ def fetch_master_folders():
     if globals.master_content_folders:
         cprint(COLORS.BRIGHT_CYAN, m.DONE, "\n")
     else:
-        trigger_error(m.E_NO_MASTERS.format(globals.settings[MASTER_CONTENT_FOLDERS]))
+        trigger_error(m.E_NO_MASTERS.format(MASTER_CONTENT_FOLDERS))
 
 
 def load_definition_files():
     cprint(COLORS.BRIGHT_CYAN, "=" * 10, m.FETCHING_DEFINITIONS, "=" * 10)
-    check_config_value(DEFINITIONS_FOLDER_LOCATION)
-    check_valid_folder(Path(globals.settings[DEFINITIONS_FOLDER_LOCATION]))
-    for definition_file_path in Path(globals.settings[DEFINITIONS_FOLDER_LOCATION]).glob('*.json'):
+    definitions_folder_path = Path(config.get_string(DEFINITIONS_FOLDER_LOCATION))
+    check_valid_folder(definitions_folder_path)
+    for definition_file_path in definitions_folder_path.glob('*.json'):
         print(definition_file_path)
         mod = load_json_from_file(definition_file_path)
         mod[Mod.DEFINITION_FILE_PATH] = definition_file_path
@@ -68,7 +67,7 @@ def load_definition_files():
     if globals.mods:
         cprint(COLORS.BRIGHT_CYAN, m.DONE, "\n")
     else:
-        trigger_error(m.E_NO_DEFINITIONS.format(globals.settings[DEFINITIONS_FOLDER_LOCATION]))
+        trigger_error(m.E_NO_DEFINITIONS.format(definitions_folder_path))
 
 
 def __define_all_mods__():
@@ -80,10 +79,8 @@ def __define_all_mods__():
 
 
 def __define_mod__(mod: Dict):
-    content_root = mod[Mod.CONTENT_ROOT]
-
-    cprint(COLORS.BRIGHT_CYAN, "=" * 10, m.FETCHING_MODDED_FILES.format(content_root), "=" * 10)
     content_root_path = Path(mod[Mod.CONTENT_ROOT])
+    cprint(COLORS.BRIGHT_CYAN, "=" * 10, m.FETCHING_MODDED_FILES.format(content_root_path), "=" * 10)
     check_valid_folder(content_root_path)
 
     if mod[Mod.MODDED_FILES]:
@@ -92,7 +89,7 @@ def __define_mod__(mod: Dict):
             return
 
     # Find all uexp and uasset files in mod folder
-    modded_files_path = [path for path in Path(content_root).rglob('*') if path.suffix in MOD_FILE_EXTENSIONS]
+    modded_files_path = [path for path in Path(content_root_path).rglob('*') if path.suffix in MOD_FILE_EXTENSIONS]
     mod[Mod.MODDED_FILES] = defaultdict(dict)
     for modded_file_path in modded_files_path:
         # Get relative path relative to the content root folder
@@ -170,17 +167,27 @@ def __verify_mod__(mod: Dict):
 
         modded_file_absolute_path = mod[Mod.CONTENT_ROOT] / modded_file_relative_path
         if verify_mod_file(mod, modded_file_relative_path):
-            if globals.settings.getboolean('VERBOSE_OUTPUT', fallback=True):
+            if config.get_boolean('VERBOSE_OUTPUT', fallback=True):
                 print_file_result(modded_file_absolute_path, COLORS.BRIGHT_GREEN, m.FILE_SIZE_OK)
         else:
             all_files_ok = False
             print_file_result(modded_file_absolute_path, COLORS.BRIGHT_YELLOW, m.FILE_SIZE_WRONG)
 
-    if all_files_ok and not globals.settings.getboolean('VERBOSE_OUTPUT', fallback=True):
+    if all_files_ok and not config.get_boolean('VERBOSE_OUTPUT', fallback=True):
         cprint(COLORS.BRIGHT_GREEN, m.ALL_FILE_SIZE_OK)
 
     # pprint(globals.master_files)
     cprint(COLORS.BRIGHT_CYAN, m.DONE, "\n")
+
+
+def __generate_all_mods__():
+    for mod in globals.mods.values():
+        __generate_mod__(mod)
+
+
+def __generate_mod__(mod: Dict):
+    cprint(COLORS.BRIGHT_CYAN, "=" * 10, m.GENERATING_MOD.format(get_mod_name(mod)), "=" * 10)
+    check_valid_folder(config.get_string(GENERATED_MODS_OUTPUT_FOLDER))
 
 
 def __check_last_update__():
@@ -240,8 +247,8 @@ def fetch_modded_files(mod):
 
 
 def check_latest_update():
-    check_config_value(LATEST_CONTENT_FOLDER_PATH)
-    check_config_value(PREVIOUS_CONTENT_FOLDER_PATH)
+    check_value(LATEST_CONTENT_FOLDER_PATH)
+    check_value(PREVIOUS_CONTENT_FOLDER_PATH)
     check_valid_folder(globals.settings[LATEST_CONTENT_FOLDER_PATH])
     check_valid_folder(globals.settings[PREVIOUS_CONTENT_FOLDER_PATH])
     find_modded_file_original(PREVIOUS_CONTENT_FOLDER_PATH, PREVIOUS)
@@ -289,7 +296,7 @@ if __name__ == "__main__":
     # Not needed actually
     # globals.temp_folder.mkdir(exist_ok=True)
 
-    check_config_file(configparser.ConfigParser())
+    # config.load()
 
     # Run cleanup when program ending (doesn't work when close window however)
     # Not needed actually, no temp folder needed
