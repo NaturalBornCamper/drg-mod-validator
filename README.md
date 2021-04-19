@@ -6,6 +6,9 @@ json definition file = FORWARD SLASHES OR JSON ERRORS
 json definition file = FORWARD SLASHES OR JSON ERRORS
 json definition file = FORWARD SLASHES OR JSON ERRORS
 
+The .NET Core runtime can be found at:
+  - https://aka.ms/dotnet-core-applaunch?missing_runtime=true&arch=x64&rid=win10-x64
+
 
 ### Introduction
 Got tired of needing to manually check if my mods were still working between hotfixes/updates, or if they were still working but not including the latest changes.

@@ -5,12 +5,12 @@ class PropertyReader:
     @staticmethod
     def IntProperty(file, offset, size):
         file.seek(offset)
-        return struct.unpack('i', file.read(size))
+        return struct.unpack('i', file.read(size))[0]
 
     @staticmethod
     def FloatProperty(file, offset, size):
         file.seek(offset)
-        return struct.unpack('f', file.read(size))
+        return struct.unpack('f', file.read(size))[0]
 
     @staticmethod
     def TextProperty(file, offset, size):

@@ -1,11 +1,8 @@
 import configparser
 import ctypes
 import filecmp
-import os
 import re
-import shutil
-import struct
-import subprocess
+from collections import defaultdict
 from pathlib import Path
 from pprint import pprint
 from typing import Dict
@@ -13,36 +10,39 @@ from typing import Dict
 from pyrotools.console import cprint, COLORS
 
 import globals
+import messages as m
 from config import check_config_file, check_config_value, config_get_list
 from constants import PREVIOUS_CONTENT_FOLDER_PATH, LATEST_CONTENT_FOLDER_PATH, LATEST, \
-    PREVIOUS, MOD_FILE_EXTENSIONS, DEFINITIONS_FOLDER_LOCATION, Mod, JSON_PARSER_PATH, MASTER_CONTENT_FOLDERS, \
+    PREVIOUS, MOD_FILE_EXTENSIONS, DEFINITIONS_FOLDER_LOCATION, Mod, MASTER_CONTENT_FOLDERS, \
     VERSION_REGEX, SUPPORTED_PROPERTY_TYPES, SUPPORTED_PROPERTY_TAG_DATA
 from property_reader import PropertyReader
-from utils import clear_temp_folder, trigger_error, check_valid_folder, get_file_counterpart, \
-    get_file_counterpart_json, load_json_from_file, get_mod_name, print_file_result
+from utils import clear_temp_folder, trigger_error, check_valid_folder, get_file_json_counterpart, load_json_from_file, \
+    get_mod_name, print_file_result, \
+    verify_mod_file, get_corresponding_master_file, confirm
 
 
 def fetch_master_folders():
-    cprint(COLORS.BRIGHT_CYAN, "=" * 10, "Scanning for master content folders..", "=" * 10)
+    cprint(COLORS.BRIGHT_CYAN, "=" * 10, m.FETCHING_MASTERS, "=" * 10)
     check_config_value(MASTER_CONTENT_FOLDERS)
     for master_content_folder in config_get_list(globals.settings[MASTER_CONTENT_FOLDERS]):
         master_folder_path = Path(master_content_folder)
         check_valid_folder(master_folder_path)
+        # TODO Add version support for experimental u33e.5642
         matches = re.search(pattern=VERSION_REGEX, string=master_content_folder, flags=re.IGNORECASE)
         if not matches:
-            trigger_error(f"ERROR - \"{master_content_folder}\" folder name must contain a version name (ex u34.2)")
+            trigger_error(m.E_NO_VERSION.format(master_content_folder))
         globals.master_content_folders[matches.group(1)] = master_folder_path
         print(f"Version {matches.group(1)} - {master_content_folder}")
 
     # pprint(globals.master_content_folders)
     if globals.master_content_folders:
-        cprint(COLORS.BRIGHT_CYAN, "DONE", "\n")
+        cprint(COLORS.BRIGHT_CYAN, m.DONE, "\n")
     else:
-        trigger_error(f"ERROR - \"{globals.settings[MASTER_CONTENT_FOLDERS]}\" doesn't contain any valid folders")
+        trigger_error(m.E_NO_MASTERS.format(globals.settings[MASTER_CONTENT_FOLDERS]))
 
 
 def load_definition_files():
-    cprint(COLORS.BRIGHT_CYAN, "=" * 10, "Scanning for mod definition files..", "=" * 10)
+    cprint(COLORS.BRIGHT_CYAN, "=" * 10, m.FETCHING_DEFINITIONS, "=" * 10)
     check_config_value(DEFINITIONS_FOLDER_LOCATION)
     check_valid_folder(Path(globals.settings[DEFINITIONS_FOLDER_LOCATION]))
     for definition_file_path in Path(globals.settings[DEFINITIONS_FOLDER_LOCATION]).glob('*.json'):
@@ -50,9 +50,9 @@ def load_definition_files():
         mod = load_json_from_file(definition_file_path)
         mod[Mod.DEFINITION_FILE_PATH] = definition_file_path
         if Mod.CONTENT_ROOT not in mod:
-            trigger_error(f"ERROR - \"{definition_file_path}\" doesn't have a {Mod.CONTENT_ROOT}")
+            trigger_error(m.E_DEFINITION_NO_CONTENT_ROOT.format(definition_file_path, Mod.CONTENT_ROOT))
         elif not Path(mod[Mod.CONTENT_ROOT]).is_dir():
-            trigger_error(f"ERROR - \"{mod[Mod.CONTENT_ROOT]}\" in \"{definition_file_path}\" is not a valid folder")
+            trigger_error(m.E_DEFINITION_INVALID_CONTENT_ROOT.format(mod[Mod.CONTENT_ROOT], definition_file_path))
 
         # Sanitize modded files location to make sure they don't start with a slash
         if Mod.MODDED_FILES in mod:
@@ -60,128 +60,92 @@ def load_definition_files():
                 modded_file_path = Path(modded_file_location)
                 if modded_file_path.root in ["/", "\\"]:
                     sanitized_modded_file_location = modded_file_path.relative_to("/").as_posix()
-                    mod[Mod.MODDED_FILES][sanitized_modded_file_location] = mod[Mod.MODDED_FILES].pop(modded_file_location)
+                    mod[Mod.MODDED_FILES][sanitized_modded_file_location] = mod[Mod.MODDED_FILES].pop(
+                        modded_file_location)
 
         globals.mods[definition_file_path] = mod
 
     if globals.mods:
-        cprint(COLORS.BRIGHT_CYAN, "DONE", "\n")
+        cprint(COLORS.BRIGHT_CYAN, m.DONE, "\n")
     else:
-        trigger_error(
-            f"ERROR - \"{globals.settings[DEFINITIONS_FOLDER_LOCATION]}\" doesn't contain any definition files")
+        trigger_error(m.E_NO_DEFINITIONS.format(globals.settings[DEFINITIONS_FOLDER_LOCATION]))
 
 
 def __define_all_mods__():
     for mod in globals.mods.values():
-        __define_mod__(mod)
+        if __define_mod__(mod):
+            pprint(mod)
+            # Write mod to definition file
+            pass
 
 
 def __define_mod__(mod: Dict):
     content_root = mod[Mod.CONTENT_ROOT]
 
-    cprint(COLORS.BRIGHT_CYAN, "=" * 10, f"Scanning for modded files in {content_root}..", "=" * 10)
+    cprint(COLORS.BRIGHT_CYAN, "=" * 10, m.FETCHING_MODDED_FILES.format(content_root), "=" * 10)
     content_root_path = Path(mod[Mod.CONTENT_ROOT])
     check_valid_folder(content_root_path)
 
-    pprint(mod[Mod.MODDED_FILES])
+    if mod[Mod.MODDED_FILES]:
+        if not confirm(m.W_DEFINITION_HAS_FILES.format(mod[Mod.DEFINITION_FILE_PATH], Mod.MODDED_FILES)):
+            cprint(COLORS.BRIGHT_CYAN, m.ABORTED)
+            return
+
     # Find all uexp and uasset files in mod folder
     modded_files_path = [path for path in Path(content_root).rglob('*') if path.suffix in MOD_FILE_EXTENSIONS]
+    mod[Mod.MODDED_FILES] = defaultdict(dict)
     for modded_file_path in modded_files_path:
-        # Unfortunately, .uasset files not supported at the moment, no idea how the offsets work
-        if modded_file_path.suffix == '.uasset':
-            continue
-        print(modded_file_path)
         # Get relative path relative to the content root folder
-        relative_modded_file_path = modded_file_path.relative_to(content_root_path)
+        modded_file_relative_path = modded_file_path.relative_to(content_root_path)
 
-        # TODO Will actually need to save every mod file when comparing update, to see if same file?
-        # TODO I think not... just scan mod, get master file with correct version and compare with most recent
-        # TODO When finding last version, watch out for 33.1 = 33.10, must take that into account
-        # add_unique_mod_file(relative_modded_file_path)
+        # Check file size, if different, mod create with different version than stated
+        if not verify_mod_file(mod, modded_file_relative_path, modded_file_path):
+            trigger_error(m.E_WRONG_VERSION.format(modded_file_path, mod[Mod.MASTER_VERSION]), False)
+            return False
 
-        # COPY ONLY WHEN NEED TO
-        # copy_to_temp(relative_modded_file_path)
-
-        # Detected new modded file that was not in the definition file before
-        print(relative_modded_file_path)
-        if relative_modded_file_path.as_posix() not in mod[Mod.MODDED_FILES]:
-            mod[Mod.MODDED_FILES][relative_modded_file_path.as_posix()] = {}
-        # modded_files.append(path)
+        # Unfortunately, .uasset files not supported at the moment, no idea how the offsets work
+        if modded_file_path.suffix == '.uasset': continue
+        print(modded_file_path)
 
         # Make sure modded file has a corresponding master file with the same version as the mod
-        master_file_path = get_corresponding_master_file(mod, Path(relative_modded_file_path))
+        master_file_path = get_corresponding_master_file(mod, Path(modded_file_relative_path))
 
-        # Make sure json index file exists or generate it
-        json_index_path = get_file_counterpart_json(master_file_path)
-        if not json_index_path.is_file():
-
-            # Make sure master_file conterpart exists
-            master_file_counterpart_path = get_file_counterpart(master_file_path)
-            if not master_file_counterpart_path.exists():
-                trigger_error(f"ERROR - Needed file \"{master_file_counterpart_path}\" doesn't exist. Was it deleted?")
-
-            subprocess.Popen([globals.settings[JSON_PARSER_PATH], master_file_path]).wait()
-            if not json_index_path.is_file():
-                trigger_error(f"ERROR - Unable to create \"{json_index_path}\"")
-
-        # We got the json index file, load it
-        json_index = load_json_from_file(json_index_path)
-
-        modded_file_changes = mod[Mod.MODDED_FILES][relative_modded_file_path.as_posix()]
+        # Generate json index file (If needed) and load it
+        json_index = load_json_from_file(get_file_json_counterpart(master_file_path))
 
         master_file = open(master_file_path, "rb")
         modded_file = open(content_root_path / modded_file_path, "rb")
         for object_index, object in enumerate(json_index['ExportValues']):
             object_name = object['Object']
             for property_index, property in enumerate(object["Potential Properties"]):
-                # pprint(object_name)
-                # pprint(property)
-                if 'Type' not in property:
-                    continue
+                if 'Type' not in property: continue
                 property_type = property['Type']
                 # If this property type is not supported, pass it
-                if property_type not in SUPPORTED_PROPERTY_TYPES:
-                    continue
+                if property_type not in SUPPORTED_PROPERTY_TYPES: continue
                 # If this property tag data is not supported, pass it
-                if 'Tag Data' in property and property['Tag Data']['Name'] not in SUPPORTED_PROPERTY_TAG_DATA:
-                    continue
+                if 'Tag Data' in property and property['Tag Data']['Name'] not in SUPPORTED_PROPERTY_TAG_DATA: continue
+
                 property_name = property['Property']
                 property_offset = property['Value Offset']
                 property_size = property['Size']
                 master_value = PropertyReader.methods[property_type](master_file, property_offset, property_size)
                 modded_value = PropertyReader.methods[property_type](modded_file, property_offset, property_size)
+
                 if master_value != modded_value:
-                    string = f"[Object={object_name}][Potential Properties][Property={property_name}]"
-                    if string not in modded_file_changes:
-                        modded_file_changes[string] = {
-                            Mod.OFFSET: string,
-                            Mod.ORIGINAL_VALUE: master_value,
-                            Mod.MODDED_VALUE: modded_value,
-                        }
-                    else:
-                        # TODO Warn if original not as the same, means incorrect version. Or remove original from definition file
-                        # TODO Update modded values
-                        # TODO If existing modded value is a percentage, check if percentage still the same? No because often 1.2499999 instead of 1.25 (verify)
-                        pass
+                    key = f"[Object={object_name}][Potential Properties][Property={property_name}]"
+                    mod[Mod.MODDED_FILES][modded_file_relative_path.as_posix()][key] = {
+                        Mod.OFFSET: key,
+                        Mod.ORIGINAL_VALUE: master_value,
+                        Mod.MODDED_VALUE: modded_value,
+                    }
                     print(f"master_value: {master_value}")
                     print(f"modded_value: {modded_value}")
                     print('')
-                # value = PropertyReader[property_type](master_file, property_offset)
-                # TODO ask if overwrite first only only add missing (for example if 50%) -> Maybe verify if 50% still true?
 
         master_file.close()
         modded_file.close()
-
-
-        # Generate json assets with orginal file
-        # bob1 = globals.unique_modded_files[path.name][LATEST]
-        # json_asset_path = bob1.with_name(path.stem + '-UAsset').with_suffix('.json')
-        # if not json_asset_path.is_file():
-        #     subprocess.Popen([globals.settings[JSON_PARSER_PATH], bob1]).wait()
-        #
-        # globals.original_json = load_json_from_file(json_asset_path)
-    pprint(mod)
-    cprint(COLORS.BRIGHT_CYAN, "DONE", "\n")
+    cprint(COLORS.BRIGHT_CYAN, m.DONE, "\n")
+    return True
 
 
 def __verify_all_mods__():
@@ -190,84 +154,45 @@ def __verify_all_mods__():
 
 
 def __verify_mod__(mod: Dict):
-    cprint(COLORS.BRIGHT_CYAN, "=" * 10, f"Verifying mod \"{get_mod_name(mod)}\" ..", "=" * 10)
+    cprint(COLORS.BRIGHT_CYAN, "=" * 10, m.VERIFYING_MOD.format(get_mod_name(mod)), "=" * 10)
 
     # Make sure mod definition has modded files listed
     if Mod.MODDED_FILES not in mod:
-        trigger_error(f"ERROR - \"{mod[Mod.DEFINITION_FILE_PATH]}\" doesn't have any ModdedFiles yet")
+        trigger_error(m.E_MOD_NOT_DEFINED_YET.format(mod[Mod.DEFINITION_FILE_PATH]))
 
     # Make sure mod definition has a DRG Version set
     if Mod.MASTER_VERSION not in mod:
-        trigger_error(f"ERROR - \"{mod[Mod.DEFINITION_FILE_PATH]}\" doesn't have \"{Mod.MASTER_VERSION}\" set")
+        trigger_error(m.E_NO_MASTER_VERSION_SET.format(mod[Mod.DEFINITION_FILE_PATH], Mod.MASTER_VERSION))
 
     all_files_ok = True
-    for modded_file_path in mod[Mod.MODDED_FILES]:
-        modded_file_path = Path(modded_file_path)
+    for modded_file in mod[Mod.MODDED_FILES]:
+        modded_file_relative_path = Path(modded_file)
 
-        # Make sure modded file path doesn't start with a slash or it will mess up Path()
-        if modded_file_path.root in ["/", "\\"]:
-            modded_file_path = modded_file_path.relative_to("/")
-
-        # Make sure each modded file has a corresponding master file
-        master_file_path = get_corresponding_master_file(mod, Path(modded_file_path))
-
-        # Compare master file's size with modded file's size
-        modded_file_absolute_path = mod[Mod.CONTENT_ROOT] / modded_file_path
-        if os.path.getsize(master_file_path) == os.path.getsize(modded_file_absolute_path):
+        modded_file_absolute_path = mod[Mod.CONTENT_ROOT] / modded_file_relative_path
+        if verify_mod_file(mod, modded_file_relative_path):
             if globals.settings.getboolean('VERBOSE_OUTPUT', fallback=True):
-                print_file_result(modded_file_absolute_path, COLORS.BRIGHT_GREEN, "-> Correct size, game should run")
+                print_file_result(modded_file_absolute_path, COLORS.BRIGHT_GREEN, m.FILE_SIZE_OK)
         else:
             all_files_ok = False
-            print_file_result(modded_file_absolute_path, COLORS.BRIGHT_YELLOW, "-> Different size, game will not run")
+            print_file_result(modded_file_absolute_path, COLORS.BRIGHT_YELLOW, m.FILE_SIZE_WRONG)
 
     if all_files_ok and not globals.settings.getboolean('VERBOSE_OUTPUT', fallback=True):
-        cprint(COLORS.BRIGHT_GREEN, "All files have correct size, game should run")
+        cprint(COLORS.BRIGHT_GREEN, m.ALL_FILE_SIZE_OK)
 
     # pprint(globals.master_files)
-    cprint(COLORS.BRIGHT_CYAN, "DONE", "\n")
+    cprint(COLORS.BRIGHT_CYAN, m.DONE, "\n")
 
 
-def get_corresponding_master_file(mod: Dict, relative_modded_file_path: Path) -> Path:
-    current_master_version = mod[Mod.MASTER_VERSION]
-    if current_master_version not in globals.master_content_folders:
-        trigger_error("ERROR - You don't have version {} in settings.ini {} needed by \"{}\"".format(
-            current_master_version,
-            MASTER_CONTENT_FOLDERS,
-            mod[Mod.DEFINITION_FILE_PATH]
-        ))
-
-    # Create dictionary for that master version if if doesn't exist yet
-    if current_master_version not in globals.master_files:
-        globals.master_files[current_master_version] = {}
-
-    current_master_files = globals.master_files[current_master_version]
-    # Check if that master file was already located
-    if relative_modded_file_path.name in current_master_files:
-        return current_master_files[relative_modded_file_path.name]
-    else:
-        # Try to guess the modded file's location in the original content folder from expected hierarchy
-        guessed_location = globals.master_content_folders[current_master_version].parent / relative_modded_file_path
-
-        # Check if the file is located at the guessed location, or search for it
-        if guessed_location.is_file():
-            current_master_files[relative_modded_file_path.name] = guessed_location
-        else:
-            cprint(COLORS.BRIGHT_CYAN, "\"{}\" has wrong folder structure, searching for it in \"{}\" ..".format(
-                relative_modded_file_path.name,
-                globals.master_content_folders[current_master_version]
-            ))
-            for found_file in globals.master_content_folders[current_master_version].rglob(relative_modded_file_path.name):
-                current_master_files[relative_modded_file_path.name] = found_file
-                break
-            if relative_modded_file_path.name not in current_master_files:
-                trigger_error("ERROR - Could not find \"{}\" in \"{}\"".format(
-                    relative_modded_file_path.name,
-                    globals.master_content_folders[current_master_version],
-                ))
-
-    return current_master_files[relative_modded_file_path.name]
-
-
+def __check_last_update__():
+    """
+    For each mod:
+    1-get master file of every file changed by the mod
+    2-get master file of the latest version
+    3-Check if bytes are the same
+    NOTE: When finding last version, watch out for 33.10 becoming 33.1 as int. Keep as strings
+    :return:
+    """
+    pass
 """
 ^^^^^^^^^^^^^^^^^^^^^^ GOOD ABOVE ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 ^^^^^^^^^^^^^^^^^^^^^^ GOOD ABOVE ^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -312,40 +237,6 @@ def fetch_modded_files(mod):
         # globals.original_json = load_json_from_file(json_asset_path)
 
     cprint(COLORS.BRIGHT_CYAN, "DONE", "\n")
-
-
-def copy_to_temp(modded_file_path):
-    # Copy file
-    destination_path = globals.temp_folder / modded_file_path.name
-    destination_counterpart_path = get_file_counterpart(destination_path)
-    modded_counterpart_path = get_file_counterpart(modded_file_path)
-    original_path = globals.unique_modded_files[modded_file_path.name][LATEST]
-    original_counterpart_path = get_file_counterpart(original_path)
-    if not destination_path.is_file():
-        shutil.copy(modded_file_path, destination_path)
-    # check if other file (uasset or euxp) next to it
-    if not destination_counterpart_path.is_file():
-        # Check if counterpart is also modded
-        if modded_counterpart_path.is_file():
-            shutil.copy(modded_counterpart_path, destination_counterpart_path)
-        elif original_counterpart_path.is_file():
-            shutil.copy(original_counterpart_path, destination_counterpart_path)
-        else:
-            trigger_error(f"{destination_counterpart_path.name} is missing from mod folder AND original files")
-
-        # generate json and load
-        subprocess.Popen([globals.settings[JSON_PARSER_PATH], destination_path]).wait()
-
-        globals.json_index = load_json_from_file(get_file_counterpart_json(destination_path))
-
-
-def add_unique_mod_file(modded_file):
-    if modded_file.name in globals.unique_modded_files:
-        return
-    globals.unique_modded_files[modded_file.name] = {}
-    find_modded_file_original(LATEST_CONTENT_FOLDER_PATH, LATEST, modded_file)
-    find_modded_file_original(PREVIOUS_CONTENT_FOLDER_PATH, PREVIOUS, modded_file)
-    pprint(globals.unique_modded_files)
 
 
 def check_latest_update():
