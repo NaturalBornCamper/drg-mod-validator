@@ -1,6 +1,9 @@
+# TODO Add messages from other files (utils, main, etc)
+
 # General
 DONE = "DONE"
 ABORTED = "ABORTED"
+INVALID_INPUT = "Invalid input" + "\n"
 
 # fetch_master_folders()
 FETCHING_MASTERS = "Scanning for master content folders.."
@@ -15,7 +18,7 @@ E_NO_DEFINITIONS = "ERROR - \"{}\" doesn't contain any definition files"
 
 # __define_mod__()
 FETCHING_MODDED_FILES = "Scanning for modded files in {}.."
-W_DEFINITION_HAS_FILES = "WARNING - \"{}\" already has files listed in \"{}\" Overwrite?"
+W_DEFINITION_HAS_FILES = "WARNING - \"{}\" already has files listed in \"{}\" Overwrite? "
 E_WRONG_VERSION = "ERROR - \"{}\" size differs from master file, seems like mod was not created from version {}"
 
 # __generate_mod__()

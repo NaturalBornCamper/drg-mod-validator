@@ -1,10 +1,10 @@
 import ctypes
 import filecmp
+import msvcrt
+import os
 import re
-from collections import defaultdict
 from pathlib import Path
 from pprint import pprint
-from typing import Dict
 
 from pyrotools.console import cprint, COLORS
 
@@ -13,11 +13,12 @@ import globals
 import messages as m
 from constants import PREVIOUS_CONTENT_FOLDER_PATH, LATEST_CONTENT_FOLDER_PATH, LATEST, \
     PREVIOUS, MOD_FILE_EXTENSIONS, DEFINITIONS_FOLDER_LOCATION, Mod, MASTER_CONTENT_FOLDERS, \
-    VERSION_REGEX, SUPPORTED_PROPERTY_TYPES, SUPPORTED_PROPERTY_TAG_DATA, GENERATED_MODS_OUTPUT_FOLDER
-from property_reader import PropertyReader
-from utils import clear_temp_folder, trigger_error, check_valid_folder, get_file_json_counterpart, load_json_from_file, \
-    get_mod_name, print_file_result, \
-    verify_mod_file, get_corresponding_master_file, confirm
+    VERSION_REGEX, COMMAND_REGEX, Commands
+from mod_functions import define, generate, verify
+from mod_functions.generate import all
+from utils import clear_temp_folder, trigger_error, check_valid_folder, load_json_from_file, \
+    get_mod_name, print_file_result
+from mod_functions.verify import all
 
 
 def fetch_master_folders():
@@ -68,126 +69,6 @@ def load_definition_files():
         cprint(COLORS.BRIGHT_CYAN, m.DONE, "\n")
     else:
         trigger_error(m.E_NO_DEFINITIONS.format(definitions_folder_path))
-
-
-def __define_all_mods__():
-    for mod in globals.mods.values():
-        if __define_mod__(mod):
-            pprint(mod)
-            # Write mod to definition file
-            pass
-
-
-def __define_mod__(mod: Dict):
-    content_root_path = Path(mod[Mod.CONTENT_ROOT])
-    cprint(COLORS.BRIGHT_CYAN, "=" * 10, m.FETCHING_MODDED_FILES.format(content_root_path), "=" * 10)
-    check_valid_folder(content_root_path)
-
-    if mod[Mod.MODDED_FILES]:
-        if not confirm(m.W_DEFINITION_HAS_FILES.format(mod[Mod.DEFINITION_FILE_PATH], Mod.MODDED_FILES)):
-            cprint(COLORS.BRIGHT_CYAN, m.ABORTED)
-            return
-
-    # Find all uexp and uasset files in mod folder
-    modded_files_path = [path for path in Path(content_root_path).rglob('*') if path.suffix in MOD_FILE_EXTENSIONS]
-    mod[Mod.MODDED_FILES] = defaultdict(dict)
-    for modded_file_path in modded_files_path:
-        # Get relative path relative to the content root folder
-        modded_file_relative_path = modded_file_path.relative_to(content_root_path)
-
-        # Check file size, if different, mod create with different version than stated
-        if not verify_mod_file(mod, modded_file_relative_path, modded_file_path):
-            trigger_error(m.E_WRONG_VERSION.format(modded_file_path, mod[Mod.MASTER_VERSION]), False)
-            return False
-
-        # Unfortunately, .uasset files not supported at the moment, no idea how the offsets work
-        if modded_file_path.suffix == '.uasset': continue
-        print(modded_file_path)
-
-        # Make sure modded file has a corresponding master file with the same version as the mod
-        master_file_path = get_corresponding_master_file(mod, Path(modded_file_relative_path))
-
-        # Generate json index file (If needed) and load it
-        json_index = load_json_from_file(get_file_json_counterpart(master_file_path))
-
-        master_file = open(master_file_path, "rb")
-        modded_file = open(content_root_path / modded_file_path, "rb")
-        for object_index, object in enumerate(json_index['ExportValues']):
-            object_name = object['Object']
-            for property_index, property in enumerate(object["Potential Properties"]):
-                if 'Type' not in property: continue
-                property_type = property['Type']
-                # If this property type is not supported, pass it
-                if property_type not in SUPPORTED_PROPERTY_TYPES: continue
-                # If this property tag data is not supported, pass it
-                if 'Tag Data' in property and property['Tag Data']['Name'] not in SUPPORTED_PROPERTY_TAG_DATA: continue
-
-                property_name = property['Property']
-                property_offset = property['Value Offset']
-                property_size = property['Size']
-                master_value = PropertyReader.methods[property_type](master_file, property_offset, property_size)
-                modded_value = PropertyReader.methods[property_type](modded_file, property_offset, property_size)
-
-                if master_value != modded_value:
-                    key = f"[Object={object_name}][Potential Properties][Property={property_name}]"
-                    mod[Mod.MODDED_FILES][modded_file_relative_path.as_posix()][key] = {
-                        Mod.OFFSET: key,
-                        Mod.ORIGINAL_VALUE: master_value,
-                        Mod.MODDED_VALUE: modded_value,
-                    }
-                    print(f"master_value: {master_value}")
-                    print(f"modded_value: {modded_value}")
-                    print('')
-
-        master_file.close()
-        modded_file.close()
-    cprint(COLORS.BRIGHT_CYAN, m.DONE, "\n")
-    return True
-
-
-def __verify_all_mods__():
-    for mod in globals.mods.values():
-        __verify_mod__(mod)
-
-
-def __verify_mod__(mod: Dict):
-    cprint(COLORS.BRIGHT_CYAN, "=" * 10, m.VERIFYING_MOD.format(get_mod_name(mod)), "=" * 10)
-
-    # Make sure mod definition has modded files listed
-    if Mod.MODDED_FILES not in mod:
-        trigger_error(m.E_MOD_NOT_DEFINED_YET.format(mod[Mod.DEFINITION_FILE_PATH]))
-
-    # Make sure mod definition has a DRG Version set
-    if Mod.MASTER_VERSION not in mod:
-        trigger_error(m.E_NO_MASTER_VERSION_SET.format(mod[Mod.DEFINITION_FILE_PATH], Mod.MASTER_VERSION))
-
-    all_files_ok = True
-    for modded_file in mod[Mod.MODDED_FILES]:
-        modded_file_relative_path = Path(modded_file)
-
-        modded_file_absolute_path = mod[Mod.CONTENT_ROOT] / modded_file_relative_path
-        if verify_mod_file(mod, modded_file_relative_path):
-            if config.get_boolean('VERBOSE_OUTPUT', fallback=True):
-                print_file_result(modded_file_absolute_path, COLORS.BRIGHT_GREEN, m.FILE_SIZE_OK)
-        else:
-            all_files_ok = False
-            print_file_result(modded_file_absolute_path, COLORS.BRIGHT_YELLOW, m.FILE_SIZE_WRONG)
-
-    if all_files_ok and not config.get_boolean('VERBOSE_OUTPUT', fallback=True):
-        cprint(COLORS.BRIGHT_GREEN, m.ALL_FILE_SIZE_OK)
-
-    # pprint(globals.master_files)
-    cprint(COLORS.BRIGHT_CYAN, m.DONE, "\n")
-
-
-def __generate_all_mods__():
-    for mod in globals.mods.values():
-        __generate_mod__(mod)
-
-
-def __generate_mod__(mod: Dict):
-    cprint(COLORS.BRIGHT_CYAN, "=" * 10, m.GENERATING_MOD.format(get_mod_name(mod)), "=" * 10)
-    check_valid_folder(config.get_string(GENERATED_MODS_OUTPUT_FOLDER))
 
 
 def __check_last_update__():
@@ -284,6 +165,20 @@ def check_latest_update():
     cprint(COLORS.BRIGHT_CYAN, "DONE", "\n")
 
 
+all_functions = {
+    Commands.DEFINE: define.all,
+    Commands.VERIFY: verify.all,
+    Commands.GENERATE: generate.all,
+    # Commands.COMPARE: compare.all,
+}
+
+single_functions = {
+    Commands.DEFINE: define.one,
+    Commands.VERIFY: verify.one,
+    Commands.GENERATE: generate.one,
+    # Commands.COMPARE: compare.one,
+}
+
 if __name__ == "__main__":
     # Activate VT100 console for colors in Windows 10
     kernel32 = ctypes.WinDLL('kernel32')
@@ -293,26 +188,10 @@ if __name__ == "__main__":
     mode.value |= 4
     kernel32.SetConsoleMode(hStdOut, mode)
 
-    # Not needed actually
-    # globals.temp_folder.mkdir(exist_ok=True)
-
-    # config.load()
-
-    # Run cleanup when program ending (doesn't work when close window however)
-    # Not needed actually, no temp folder needed
-    # atexit.register(cleanup)
-
     # Scan all json mod files
     load_definition_files()
 
     fetch_master_folders()
-
-    __define_all_mods__()
-
-    __verify_all_mods__()
-
-    # ...
-    # parse_mod_definitions()
 
     # # Scan all uexp files in modded content folders
     # scan_modded_files()
@@ -322,17 +201,35 @@ if __name__ == "__main__":
     # check_valid_folder(globals.settings[LATEST_CONTENT_FOLDER_PATH])
     # find_modded_files_originals(LATEST_CONTENT_FOLDER_PATH, LATEST)
 
+    first_run_message = f"{COLORS.BRIGHT_RED}(START HERE){COLORS.RESET}"
     while True:
-        cprint(COLORS.BRIGHT_MAGENTA, "Choose one of the following options:")
-        cprint(COLORS.BRIGHT_MAGENTA, "(V) Validate your mod files")
-        cprint(COLORS.BRIGHT_MAGENTA, "(U) Compare updates/hotfixes")
-        command = input("Your choice: ").lower()
-        if command == "v":
-            pass
-            # Check modded files for size difference (incompatible)
-            # validate_mods()
-        elif command == "u":
-            # Compare original files between version
-            check_latest_update()
+        cprint(COLORS.BRIGHT_MAGENTA, "Available mod_functions:")
+        cprint(COLORS.BRIGHT_BLUE, "(V)alidate your mod files")
+        cprint(COLORS.BRIGHT_BLUE, "(D)efine mod definition file (existing mod -> definition file)", first_run_message)
+        cprint(COLORS.BRIGHT_BLUE, "(G)enerate mod (definition file -> generate mod)")
+        cprint(COLORS.BRIGHT_BLUE, "(C)ompare updates/hotfixes")
+        cprint(COLORS.BRIGHT_BLUE, "(U)pgrade to last version")
+
+        cprint(COLORS.BRIGHT_MAGENTA, "Available mods:")
+        for count, (key, selected_mod) in enumerate(globals.mods.items(), start=1):
+            print(f"({count}) {get_mod_name(selected_mod)}")
+        command = input(
+            COLORS.BRIGHT_MAGENTA + "Input function and mod (function + mod number) (ex \"D2\"): " + COLORS.RESET
+        ).lower()
+        # cprint(COLORS.BRIGHT_MAGENTA, "ex1: \"d1\" = Define mod 1     ex2: \"da\" = Define all mods")
+
+        matches = re.search(pattern=COMMAND_REGEX, string=command, flags=re.IGNORECASE)
+        if matches:
+            command = matches.group(1)
+            parameter = matches.group(2)
+            if parameter == "a" and command in all_functions:
+                all_functions[command]()
+                os.system("pause")
+            # TODO Elif below, if d9999 = Index out of range, fix
+            elif (mod := list(globals.mods.values())[int(parameter)-1]) and command in single_functions:
+                single_functions[command](mod)
+                os.system("pause")
+            else:
+                cprint(COLORS.BRIGHT_RED, m.INVALID_INPUT)
         else:
-            cprint(COLORS.BRIGHT_RED, "Invalid input")
+            cprint(COLORS.BRIGHT_RED, m.INVALID_INPUT)

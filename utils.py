@@ -1,5 +1,4 @@
 import json
-import msvcrt
 import os
 import subprocess
 import sys
@@ -8,7 +7,8 @@ from typing import Dict, Union
 
 from pyrotools.console import cprint, COLORS
 
-from constants import Mod, JSON_PARSER_PATH, MASTER_CONTENT_FOLDERS
+import config
+from constants import Mod, JSON_PARSER_PATH, MASTER_CONTENT_FOLDERS, DEFINITION_FILE_KEYS, CREATED_BY
 from globals import temp_folder
 import globals
 
@@ -27,8 +27,7 @@ def clear_temp_folder() -> None:
 def trigger_error(message: str, halt: bool = True) -> None:
     cprint(COLORS.BRIGHT_RED, message)
     if halt:
-        print('Press any key to exit ...')
-        msvcrt.getch()
+        os.system("pause")
         sys.exit()
 
 
@@ -44,6 +43,7 @@ def get_file_counterpart(path: Path) -> Path:
         return path.with_suffix(".uasset")
 
 
+# Returns file's json counterpart path if exist, or generate it if not
 def get_file_json_counterpart(path: Path) -> Path:
     json_index_path = path.with_name(path.stem + "-UAsset").with_suffix(".json")
 
@@ -53,7 +53,7 @@ def get_file_json_counterpart(path: Path) -> Path:
         if not master_file_counterpart_path.exists():
             trigger_error(f"ERROR - Needed file \"{master_file_counterpart_path}\" doesn't exist. Was it deleted?")
 
-        subprocess.Popen([globals.settings[JSON_PARSER_PATH], path]).wait()
+        subprocess.Popen([config.get_string(JSON_PARSER_PATH), path]).wait()
         if not json_index_path.is_file():
             trigger_error(
                 "ERROR - Unable to create \"{}\", try running the parser manually and see if you get errors".format(
@@ -73,6 +73,40 @@ def load_json_from_file(file_path: Path) -> Dict:
     return json_data
 
 
+def write_mod_to_definition_file(mod) -> bool:
+    data = {}
+    for key in DEFINITION_FILE_KEYS:
+        if key in mod:
+            data[key] = mod[key]
+        else:
+            data[key] = ""
+
+    if not data[Mod.VERSION_NAME]:
+        data[Mod.VERSION_NAME] = mod[Mod.MASTER_VERSION] + ".0"
+
+    if not data[Mod.NAME]:
+        data[Mod.NAME] = Path(mod[Mod.DEFINITION_FILE_PATH]).stem
+
+    if not data[Mod.CREATED_BY]:
+        data[Mod.CREATED_BY] = config.get_string(CREATED_BY)
+
+    data[Mod.FILE_VERSION] = (int(data[Mod.FILE_VERSION]) if data[Mod.FILE_VERSION] else 0) + 1
+
+    try:
+        json.dumps(data, ensure_ascii=False, indent=4)
+    except Exception as e:
+        trigger_error(f"ERROR - Failed to make json: {e}")
+        return False
+
+    with open(mod[Mod.DEFINITION_FILE_PATH], 'w', encoding='utf-8') as definition_file:
+        try:
+            json.dump(data, definition_file, ensure_ascii=False, indent=4)
+        except Exception as e:
+            trigger_error(f"ERROR - Failed to write mod to \"{mod[Mod.DEFINITION_FILE_PATH]}\": {e}")
+
+    return True
+
+
 def get_mod_name(mod: Dict) -> str:
     if Mod.NAME in mod:
         return mod[Mod.NAME]
@@ -85,6 +119,7 @@ def print_file_result(filename: Path, color: str, message: str) -> None:
     cprint(color, message)
 
 
+# Check modded file size compared to master file size
 def verify_mod_file(mod: Dict, modded_file_relative_path: Path, modded_file_path: Path = None):
     # Get corresponding master file and absolute modded file path
     master_file_path = get_corresponding_master_file(mod, modded_file_relative_path)
@@ -137,5 +172,6 @@ def get_corresponding_master_file(mod: Dict, relative_modded_file_path: Path) ->
 
 
 def confirm(message: str) -> bool:
-    answer = input(f"{message} ").lower()
+    # cprint(COLORS.BRIGHT_YELLOW, message)
+    answer = input(COLORS.BRIGHT_YELLOW + message + COLORS.RESET).lower()
     return answer == 'y'

@@ -1,0 +1,65 @@
+
+StructProperty IRandRange
+Example Haz4:
+"DisruptiveEnemyPoolCount": { [3997]
+  "Min": 2, [4022] (+25)
+},
+Example Haz5:
+"DisruptiveEnemyPoolCount": { [4206]
+  "Min": 3, [4231] (+25)
+  "Max": 3 [4260] (+29) 4? [4251] (+20)
+},
+[+16] Haz3=4 Haz4=4 Haz5=4
+[+25] Haz3=2 Haz4=2 Haz5=3
+[+45] Haz5=4
+[+54] Haz5=3
+
+
+StructProperty VeteranComposition
+Can't figure out how to decode as No way of knowing how many values in "Normal" (grunts) vs "Large" (Praetorians)
+Example Haz5:
+"Veterans": { [4350]
+  "Normal": {
+    "Intervals": [
+      {
+        "Weight": 3, [4510] (+160)
+        "Range": {
+          "Min": 0, [x] (+78)
+          "Max": 0 [x] (+29)
+        }
+      },
+      {
+        "Weight": 9, [4662] (+45)
+        "Range": {
+          "Min": 0.15, [4740] (+78)
+          "Max": 0.3 [4769] (+29)
+        }
+      },
+      {
+        "Weight": 2, [4814] (+45)
+        "Range": {
+          "Min": 0.4, [4892] (+78)
+          "Max": 0.6 [4921] (+29)
+        }
+      },
+      {
+        "Weight": 0.5, [4966] (+45)
+        "Range": {
+          "Min": 1, [x] (+78)
+          "Max": 1 [5073] (+29)
+        }
+      }
+    ]
+  },
+  "Large": {
+    "Intervals": [
+      {
+        "Weight": 1, [5261] (+188)
+        "Range": {
+          "Min": 0.175, [5339] (+78)
+          "Max": 0.175 [5368] (+29)
+        }
+      }
+    ]
+  }
+},
