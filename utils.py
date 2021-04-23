@@ -3,7 +3,8 @@ import os
 import subprocess
 import sys
 from pathlib import Path
-from typing import Dict, Union
+from pyclbr import Class
+from typing import Dict, Union, List
 
 from pyrotools.console import cprint, COLORS
 
@@ -73,9 +74,12 @@ def load_json_from_file(file_path: Path) -> Dict:
     return json_data
 
 
-def write_mod_to_definition_file(mod) -> bool:
+def write_mod_properties_to_file(mod: Dict, destination_file_path: Path = None, keys: List = DEFINITION_FILE_KEYS) -> bool:
+    if not destination_file_path:
+        destination_file_path = mod[Mod.DEFINITION_FILE_PATH]
+
     data = {}
-    for key in DEFINITION_FILE_KEYS:
+    for key in keys:
         if key in mod:
             data[key] = mod[key]
         else:
@@ -85,11 +89,12 @@ def write_mod_to_definition_file(mod) -> bool:
         data[Mod.VERSION_NAME] = mod[Mod.MASTER_VERSION] + ".0"
 
     if not data[Mod.NAME]:
-        data[Mod.NAME] = Path(mod[Mod.DEFINITION_FILE_PATH]).stem
+        data[Mod.NAME] = destination_file_path.stem
 
     if not data[Mod.CREATED_BY]:
         data[Mod.CREATED_BY] = config.get_string(CREATED_BY)
 
+    # TODO Remove from definition file maybe? Or save it in definition file after generating
     data[Mod.FILE_VERSION] = (int(data[Mod.FILE_VERSION]) if data[Mod.FILE_VERSION] else 0) + 1
 
     try:
@@ -98,11 +103,11 @@ def write_mod_to_definition_file(mod) -> bool:
         trigger_error(f"ERROR - Failed to make json: {e}")
         return False
 
-    with open(mod[Mod.DEFINITION_FILE_PATH], 'w', encoding='utf-8') as definition_file:
+    with open(destination_file_path, 'w', encoding='utf-8') as definition_file:
         try:
             json.dump(data, definition_file, ensure_ascii=False, indent=4)
         except Exception as e:
-            trigger_error(f"ERROR - Failed to write mod to \"{mod[Mod.DEFINITION_FILE_PATH]}\": {e}")
+            trigger_error(f"ERROR - Failed to write mod to \"{destination_file_path}\": {e}")
 
     return True
 
@@ -159,7 +164,8 @@ def get_corresponding_master_file(mod: Dict, relative_modded_file_path: Path) ->
                 relative_modded_file_path.name,
                 globals.master_content_folders[current_master_version]
             ))
-            for found_file in globals.master_content_folders[current_master_version].rglob(relative_modded_file_path.name):
+            for found_file in globals.master_content_folders[current_master_version].rglob(
+                    relative_modded_file_path.name):
                 current_master_files[relative_modded_file_path.name] = found_file
                 break
             if relative_modded_file_path.name not in current_master_files:
@@ -175,3 +181,23 @@ def confirm(message: str) -> bool:
     # cprint(COLORS.BRIGHT_YELLOW, message)
     answer = input(COLORS.BRIGHT_YELLOW + message + COLORS.RESET).lower()
     return answer == 'y'
+
+
+def recursive_search(data: Union[List, Dict], queries: List):
+    query = queries.pop(0)
+
+    if '=' in query:  # LIST OF DICTIONARIES = loop in values until we find the one
+        key, value = query.split(sep="=")
+        for dictionary in data:
+            if key in dictionary and dictionary[key] == value:
+                if len(queries):
+                    return recursive_search(dictionary, queries)
+                else:
+                    return dictionary
+        trigger_error(f"NOT FOUND [{query}]")
+    else:  # DICTIONARY = direct access
+        if len(queries):
+            return recursive_search(data[query], queries)
+        else:
+            return data[query]
+

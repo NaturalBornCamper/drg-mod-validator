@@ -5,6 +5,7 @@ import os
 import re
 from pathlib import Path
 from pprint import pprint
+from typing import Dict, List, Union
 
 from pyrotools.console import cprint, COLORS
 
@@ -27,7 +28,6 @@ def fetch_master_folders():
     for master_content_folder in master_content_folders:
         master_folder_path = Path(master_content_folder)
         check_valid_folder(master_folder_path)
-        # TODO Add version support for experimental u33e.5642
         matches = re.search(pattern=VERSION_REGEX, string=master_content_folder, flags=re.IGNORECASE)
         if not matches:
             trigger_error(m.E_NO_VERSION.format(master_content_folder))
@@ -81,6 +81,8 @@ def __check_last_update__():
     :return:
     """
     pass
+
+
 """
 ^^^^^^^^^^^^^^^^^^^^^^ GOOD ABOVE ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 ^^^^^^^^^^^^^^^^^^^^^^ GOOD ABOVE ^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -226,7 +228,7 @@ if __name__ == "__main__":
                 all_functions[command]()
                 os.system("pause")
             # TODO Elif below, if d9999 = Index out of range, fix
-            elif (mod := list(globals.mods.values())[int(parameter)-1]) and command in single_functions:
+            elif (mod := list(globals.mods.values())[int(parameter) - 1]) and command in single_functions:
                 single_functions[command](mod)
                 os.system("pause")
             else:

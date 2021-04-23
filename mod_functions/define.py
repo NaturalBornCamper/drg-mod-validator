@@ -9,7 +9,7 @@ import messages as m
 from constants import Mod, MOD_FILE_EXTENSIONS, SUPPORTED_PROPERTY_TYPES
 from property_reader import PropertyReader
 from utils import check_valid_folder, confirm, verify_mod_file, trigger_error, get_corresponding_master_file, \
-    load_json_from_file, get_file_json_counterpart, write_mod_to_definition_file
+    load_json_from_file, get_file_json_counterpart, write_mod_properties_to_file
 
 
 def all():
@@ -53,7 +53,7 @@ def one(mod: Dict):
         json_index = load_json_from_file(get_file_json_counterpart(master_file_path))
 
         master_file = open(master_file_path, "rb")
-        modded_file = open(content_root_path / modded_file_path, "rb")
+        modded_file = open(modded_file_path, "rb")
         for object_index, object in enumerate(json_index['ExportValues']):
             object_name = object['Object']
             for property_index, property in enumerate(object["Potential Properties"]):
@@ -85,6 +85,6 @@ def one(mod: Dict):
         modded_file.close()
 
     # Write mod to definition file
-    write_mod_to_definition_file(mod)
+    write_mod_properties_to_file(mod)
     cprint(COLORS.BRIGHT_CYAN, m.DONE, "\n")
     return True

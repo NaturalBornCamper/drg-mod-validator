@@ -18,8 +18,9 @@ MOD_FILE_EXTENSIONS = ['.uexp', '.uasset']
 SUPPORTED_PROPERTY_TYPES = ["IntProperty", "FloatProperty", "TextProperty", "ArrayProperty", "StructProperty"]
 
 
-VERSION_REGEX = r'u(\d{2}\.\d{1,2})'
+VERSION_REGEX = r'u(\d{2}\.e?\d{1,5})'
 COMMAND_REGEX = r'^([a-zA-Z])(\d{1,3}|a)$'
+KEY_REGEX = r'\[(.+?)\]'
 
 CREATED_BY = 'CREATED_BY'
 
@@ -44,6 +45,17 @@ class Mod:
     OFFSET = "Offset"
     ORIGINAL_VALUE = "OriginalValue"
     MODDED_VALUE = "ModdedValue"
+
+
+PLUGIN_FILE_KEYS = [
+    Mod.FILE_VERSION,
+    Mod.VERSION_NAME,
+    Mod.NAME,
+    Mod.DESCRIPTION,
+    Mod.CATEGORY,
+    Mod.CREATED_BY,
+    Mod.CREATED_BY_URL,
+]
 
 
 DEFINITION_FILE_KEYS = [
