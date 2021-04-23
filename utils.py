@@ -14,11 +14,7 @@ from globals import temp_folder
 import globals
 
 
-def cleanup():
-    try:
-        temp_folder.rmdir()
-    except OSError as e:
-        pass
+# TODO show_message(message, color) that will check if verbose is activated
 
 
 def clear_temp_folder() -> None:

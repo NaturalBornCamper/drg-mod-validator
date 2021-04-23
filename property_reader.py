@@ -2,6 +2,7 @@ import os
 import struct
 from pprint import pprint
 
+# TODO Change name from property_reader to something else as it's also a writer now
 
 class StructProperty:
     class RandInterval:
@@ -107,55 +108,42 @@ class PropertyWriter:
     @staticmethod
     def IntProperty(file, property, modded_value):
         file.seek(property['Value Offset'])
-        return PropertyWriter.write_single_int(file, modded_value)
+        PropertyWriter.write_single_int(file, modded_value)
 
     @staticmethod
     def FloatProperty(file, property, modded_value):
         file.seek(property['Value Offset'])
-        return PropertyWriter.write_single_float(file, modded_value)
+        PropertyWriter.write_single_float(file, modded_value)
 
     @staticmethod
     def TextProperty(file, property, modded_value):
-        return
         property_offset = property['Value Offset']
         property_size = property['Size']
         file.seek(property_offset)
-        text_bytes = struct.unpack(str(property_size) + 'c', file.read(property_size))
-        return [i.decode('ISO-8859-1') for i in text_bytes]
-
+        file.write(struct.pack(str(property_size) + 'c', *[i.encode('ISO-8859-1') for i in modded_value]))
 
     @staticmethod
     def ArrayProperty(file, property, modded_value):
-        return
         # If this property tag data is not supported, pass it
         if property['Tag Data']['Name'] == 'FloatProperty':
             file.seek(property['Value Offset'] + 4)
-            return PropertyReader.read_floats(file, property['Data Value']['Count'])
+            PropertyWriter.write_floats(file, modded_value, property['Data Value']['Count'])
         elif property['Tag Data']['Name'] == 'IntProperty':
             file.seek(property['Value Offset'] + 4)
-            return PropertyReader.read_ints(file, property['Data Value']['Count'])
-        else:
-            return False
+            PropertyWriter.write_ints(file, modded_value, property['Data Value']['Count'])
 
     @staticmethod
     def StructProperty(file, property, modded_value):
-        return
         # If this property tag data is not supported, pass it
         if property['Tag Data']['Name'] == 'RandInterval':
             file.seek(property['Value Offset'] + StructProperty.RandInterval.OFFSET1)
-            values = []
-            loop_count = int((property['Size'] - 94) / 152)
-            for _ in range(0, loop_count):
-                val = [PropertyReader.read_single_float(file)]
+            for x in modded_value:
+                val = [PropertyWriter.write_single_float(file, x[0])]
                 file.seek(StructProperty.RandInterval.OFFSET2, os.SEEK_CUR)
-                val.append(PropertyReader.read_single_int(file))
+                val.append(PropertyWriter.write_single_int(file, x[1]))
                 file.seek(StructProperty.RandInterval.OFFSET3, os.SEEK_CUR)
-                val.append(PropertyReader.read_single_int(file))
+                val.append(PropertyWriter.write_single_int(file, x[2]))
                 file.seek(StructProperty.RandInterval.OFFSET4, os.SEEK_CUR)
-                values.append(val)
-            return values
-        else:
-            return False
 
     methods = {
         'IntProperty': IntProperty.__func__,
