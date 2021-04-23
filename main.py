@@ -5,13 +5,14 @@ import os
 import re
 from pathlib import Path
 from pprint import pprint
+from typing import Dict, List, Union
 
 from pyrotools.console import cprint, COLORS
 
 import config
 import globals
 import messages as m
-from constants import PREVIOUS_CONTENT_FOLDER_PATH, LATEST_CONTENT_FOLDER_PATH, LATEST, \
+from constants import LATEST, \
     PREVIOUS, MOD_FILE_EXTENSIONS, DEFINITIONS_FOLDER_LOCATION, Mod, MASTER_CONTENT_FOLDERS, \
     VERSION_REGEX, COMMAND_REGEX, Commands
 from mod_functions import define, generate, verify
@@ -20,6 +21,11 @@ from utils import clear_temp_folder, trigger_error, check_valid_folder, load_jso
     get_mod_name, print_file_result
 from mod_functions.verify import all
 
+# TODO Check with umodel if folder hieararchy inside pak file is the same when config.txt doesn't have "../../FSD"
+# TODO What happens if a value from a definition file is not in the game files anymore on next update?
+# TODO Test mod name with illegal characters like "/" or "?", when writing file name, will it mess up?
+# TODO definition file, contentRoot = "Folder containing the "Content" folder "InputFolder"?
+
 
 def fetch_master_folders():
     cprint(COLORS.BRIGHT_CYAN, "=" * 10, m.FETCHING_MASTERS, "=" * 10)
@@ -27,7 +33,6 @@ def fetch_master_folders():
     for master_content_folder in master_content_folders:
         master_folder_path = Path(master_content_folder)
         check_valid_folder(master_folder_path)
-        # TODO Add version support for experimental u33e.5642
         matches = re.search(pattern=VERSION_REGEX, string=master_content_folder, flags=re.IGNORECASE)
         if not matches:
             trigger_error(m.E_NO_VERSION.format(master_content_folder))
@@ -49,10 +54,10 @@ def load_definition_files():
         print(definition_file_path)
         mod = load_json_from_file(definition_file_path)
         mod[Mod.DEFINITION_FILE_PATH] = definition_file_path
-        if Mod.CONTENT_ROOT not in mod:
-            trigger_error(m.E_DEFINITION_NO_CONTENT_ROOT.format(definition_file_path, Mod.CONTENT_ROOT))
-        elif not Path(mod[Mod.CONTENT_ROOT]).is_dir():
-            trigger_error(m.E_DEFINITION_INVALID_CONTENT_ROOT.format(mod[Mod.CONTENT_ROOT], definition_file_path))
+        if Mod.INPUT_FOLDER not in mod:
+            trigger_error(m.E_DEFINITION_NO_INPUT_FOLDER.format(definition_file_path, Mod.INPUT_FOLDER))
+        elif not Path(mod[Mod.INPUT_FOLDER]).is_dir():
+            trigger_error(m.E_DEFINITION_INVALID_INPUT_FOLDER.format(mod[Mod.INPUT_FOLDER], definition_file_path))
 
         # Sanitize modded files location to make sure they don't start with a slash
         if Mod.MODDED_FILES in mod:
@@ -81,6 +86,8 @@ def __check_last_update__():
     :return:
     """
     pass
+
+
 """
 ^^^^^^^^^^^^^^^^^^^^^^ GOOD ABOVE ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 ^^^^^^^^^^^^^^^^^^^^^^ GOOD ABOVE ^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -92,17 +99,17 @@ def __check_last_update__():
 def fetch_modded_files(mod):
     # check_config_value(MODDED_CONTENT_FOLDER_PATHS)
     # mod = mods[mod_path]
-    content_root = mod[Mod.CONTENT_ROOT]
+    input_folder = mod[Mod.INPUT_FOLDER]
 
     clear_temp_folder()
 
     # Find all uexp and uasset files in mod folder
-    cprint(COLORS.BRIGHT_CYAN, "=" * 10, f"Scanning for modded files in {content_root}..", "=" * 10)
-    check_valid_folder(mod[Mod.CONTENT_ROOT])
+    cprint(COLORS.BRIGHT_CYAN, "=" * 10, f"Scanning for modded files in {input_folder}..", "=" * 10)
+    check_valid_folder(mod[Mod.INPUT_FOLDER])
 
-    modded_files = [path for path in Path(content_root).rglob('*') if path.suffix in MOD_FILE_EXTENSIONS]
+    modded_files = [path for path in Path(input_folder).rglob('*') if path.suffix in MOD_FILE_EXTENSIONS]
     for modded_file in modded_files:
-        relative_path = str(modded_file.as_posix()).replace(mod[Mod.CONTENT_ROOT], '')
+        relative_path = str(modded_file.as_posix()).replace(mod[Mod.INPUT_FOLDER], '')
 
         add_unique_mod_file(modded_file)
 
@@ -207,7 +214,7 @@ if __name__ == "__main__":
         cprint(COLORS.BRIGHT_BLUE, "(V)alidate your mod files")
         cprint(COLORS.BRIGHT_BLUE, "(D)efine mod definition file (existing mod -> definition file)", first_run_message)
         cprint(COLORS.BRIGHT_BLUE, "(G)enerate mod (definition file -> generate mod)")
-        cprint(COLORS.BRIGHT_BLUE, "(C)ompare updates/hotfixes")
+        cprint(COLORS.BRIGHT_BLUE, "(C)ompare updates/hotfixes")  # TODO When looking for last version, the "e" in experimental might mess up order, find best way of writing exp branch
         cprint(COLORS.BRIGHT_BLUE, "(U)pgrade to last version")
 
         cprint(COLORS.BRIGHT_MAGENTA, "Available mods:")
@@ -226,7 +233,7 @@ if __name__ == "__main__":
                 all_functions[command]()
                 os.system("pause")
             # TODO Elif below, if d9999 = Index out of range, fix
-            elif (mod := list(globals.mods.values())[int(parameter)-1]) and command in single_functions:
+            elif (mod := list(globals.mods.values())[int(parameter) - 1]) and command in single_functions:
                 single_functions[command](mod)
                 os.system("pause")
             else:

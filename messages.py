@@ -12,8 +12,8 @@ E_NO_MASTERS = "ERROR - Settings files \"{}\" doesn't contain any valid folders"
 
 # load_definition_files()
 FETCHING_DEFINITIONS = "Scanning for mod definition files.."
-E_DEFINITION_NO_CONTENT_ROOT = "ERROR - \"{}\" doesn't have a {}"
-E_DEFINITION_INVALID_CONTENT_ROOT = "ERROR - \"{}\" in \"{}\" is not a valid folder"
+E_DEFINITION_NO_INPUT_FOLDER = "ERROR - \"{}\" doesn't have a {}"
+E_DEFINITION_INVALID_INPUT_FOLDER = "ERROR - \"{}\" in \"{}\" is not a valid folder"
 E_NO_DEFINITIONS = "ERROR - \"{}\" doesn't contain any definition files"
 
 # __define_mod__()

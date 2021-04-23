@@ -1,12 +1,10 @@
 # Settings file keys
 
-MODDED_CONTENT_FOLDER_PATHS = 'MODDED_CONTENT_FOLDER_PATHS'
-LATEST_CONTENT_FOLDER_PATH = 'LATEST_CONTENT_FOLDER_PATH'
-PREVIOUS_CONTENT_FOLDER_PATH = 'PREVIOUS_CONTENT_FOLDER_PATH'
 VERBOSE_OUTPUT = 'VERBOSE_OUTPUT'
 DEFINITIONS_FOLDER_LOCATION = 'DEFINITIONS_FOLDER_LOCATION'
 MASTER_CONTENT_FOLDERS = 'MASTER_CONTENT_FOLDERS'
 JSON_PARSER_PATH = 'JSON_PARSER_PATH'
+UNREAL_PACK_COMMAND = 'UNREAL_PACK_COMMAND'
 GENERATED_MODS_OUTPUT_FOLDER = 'GENERATED_MODS_OUTPUT_FOLDER'
 
 PATH = 'PATH'
@@ -17,9 +15,12 @@ MOD_FILE_EXTENSIONS = ['.uexp', '.uasset']
 
 SUPPORTED_PROPERTY_TYPES = ["IntProperty", "FloatProperty", "TextProperty", "ArrayProperty", "StructProperty"]
 
+PLUGIN_FILE_EXTENSION = 'uplugin'
+COMPILED_PAKS_FOLDER_LOCATION = 'Content/Paks'
 
-VERSION_REGEX = r'u(\d{2}\.\d{1,2})'
+VERSION_REGEX = r'u(\d{2}\._?e?\d{1,5})'
 COMMAND_REGEX = r'^([a-zA-Z])(\d{1,3}|a)$'
+KEY_REGEX = r'\[(.+?)\]'
 
 CREATED_BY = 'CREATED_BY'
 
@@ -36,7 +37,7 @@ class Mod:
 
     # Custom indexes
     MASTER_VERSION = "MasterVersion"
-    CONTENT_ROOT = "ContentRoot"
+    INPUT_FOLDER = "InputFolder"
     MODDED_FILES = "ModdedFiles"
 
     # Functional indexes not written in file
@@ -44,6 +45,17 @@ class Mod:
     OFFSET = "Offset"
     ORIGINAL_VALUE = "OriginalValue"
     MODDED_VALUE = "ModdedValue"
+
+
+PLUGIN_FILE_KEYS = [
+    Mod.FILE_VERSION,
+    Mod.VERSION_NAME,
+    Mod.NAME,
+    Mod.DESCRIPTION,
+    Mod.CATEGORY,
+    Mod.CREATED_BY,
+    Mod.CREATED_BY_URL,
+]
 
 
 DEFINITION_FILE_KEYS = [
@@ -56,7 +68,7 @@ DEFINITION_FILE_KEYS = [
     Mod.CREATED_BY_URL,
 
     Mod.MASTER_VERSION,
-    Mod.CONTENT_ROOT,
+    Mod.INPUT_FOLDER,
     Mod.MODDED_FILES,
 ]
 

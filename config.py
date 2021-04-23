@@ -12,6 +12,7 @@ if 'SETTINGS' not in config_parser:
     trigger_error("ERROR - Section \"SETTINGS\" not found in settings.ini")
 
 
+# TODO Default value possible, as second param, then don't trigger error, return instead
 def check_value(item: str, halt_if_not_found: bool = True) -> None:
     if item not in config_parser['SETTINGS']:
         trigger_error(f"ERROR - \"{item}\" not found in settings.ini", halt=halt_if_not_found)

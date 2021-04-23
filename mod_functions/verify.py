@@ -30,7 +30,7 @@ def one(mod: Dict):
     for modded_file in mod[Mod.MODDED_FILES]:
         modded_file_relative_path = Path(modded_file)
 
-        modded_file_absolute_path = mod[Mod.CONTENT_ROOT] / modded_file_relative_path
+        modded_file_absolute_path = mod[Mod.INPUT_FOLDER] / modded_file_relative_path
         if verify_mod_file(mod, modded_file_relative_path):
             if config.get_boolean('VERBOSE_OUTPUT', fallback=True):
                 print_file_result(modded_file_absolute_path, COLORS.BRIGHT_GREEN, m.FILE_SIZE_OK)
