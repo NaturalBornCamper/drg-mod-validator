@@ -85,6 +85,6 @@ def one(mod: Dict):
         modded_file.close()
 
     # Write mod to definition file
-    write_mod_details_to_file(mod)
+    write_mod_details_to_file(mod, mod[Mod.DEFINITION_FILE_PATH])
     cprint(COLORS.BRIGHT_CYAN, m.DONE, "\n")
     return True

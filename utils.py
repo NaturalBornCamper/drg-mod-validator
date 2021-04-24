@@ -11,7 +11,7 @@ from pyrotools.console import cprint, COLORS
 
 import config
 from constants import Mod, JSON_PARSER_PATH, MASTER_CONTENT_FOLDERS, DEFINITION_FILE_KEYS, CREATED_BY, \
-    PLUGIN_FILE_EXTENSION
+    PLUGIN_FILE_EXTENSION, PLUGIN_FILE_KEYS
 from globals import temp_folder
 import globals
 
@@ -74,9 +74,11 @@ def load_json_from_file(file_path: Path) -> Dict:
     return json_data
 
 
-def write_mod_details_to_file(mod: Dict, destination_file_path: Path = None, keys: List = DEFINITION_FILE_KEYS) -> bool:
-    if not destination_file_path:
-        destination_file_path = mod[Mod.DEFINITION_FILE_PATH]
+def write_mod_details_to_file(mod: Dict, destination_file_path: Path, increment_file_version: bool = False) -> bool:
+    if destination_file_path.suffix == f".{PLUGIN_FILE_EXTENSION}":
+        keys = PLUGIN_FILE_KEYS
+    else:
+        keys = DEFINITION_FILE_KEYS
 
     data = {}
     for key in keys:
@@ -94,8 +96,7 @@ def write_mod_details_to_file(mod: Dict, destination_file_path: Path = None, key
     if not data[Mod.CREATED_BY]:
         data[Mod.CREATED_BY] = config.get_string(CREATED_BY)
 
-    # TODO Remove from definition file maybe? Or save it in definition file after generating
-    if destination_file_path.suffix == f".{PLUGIN_FILE_EXTENSION}":
+    if increment_file_version:
         data[Mod.FILE_VERSION] = (int(data[Mod.FILE_VERSION]) if data[Mod.FILE_VERSION] else 0) + 1
 
     try:

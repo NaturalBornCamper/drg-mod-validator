@@ -14,3 +14,6 @@ modded_files = []
 
 original_json = {}
 json_index = {}
+
+latest_master_version = ''
+previous_master_version = ''

@@ -18,7 +18,7 @@ SUPPORTED_PROPERTY_TYPES = ["IntProperty", "FloatProperty", "TextProperty", "Arr
 PLUGIN_FILE_EXTENSION = 'uplugin'
 COMPILED_PAKS_FOLDER_LOCATION = 'Content/Paks'
 
-VERSION_REGEX = r'u(\d{2}\._?e?\d{1,5})'
+VERSION_REGEX = r'u(\d{2}e?\.\d{1,5})'
 COMMAND_REGEX = r'^([a-zA-Z])(\d{1,3}|a)$'
 KEY_REGEX = r'\[(.+?)\]'
 
@@ -78,4 +78,5 @@ class Commands:
     VERIFY = 'v'
     GENERATE = 'g'
     COMPARE = 'c'
+    UPDATE = 'u'
 

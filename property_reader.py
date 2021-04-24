@@ -19,7 +19,7 @@ class PropertyReader:
 
     @staticmethod
     def read_floats(file, count=1):
-        return [round(value, 2) for value in struct.unpack(str(count) + 'f', file.read(count * 4))]
+        return [round(value, 3) for value in struct.unpack(str(count) + 'f', file.read(count * 4))]
 
     @staticmethod
     def read_single_int(file):

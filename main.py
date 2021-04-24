@@ -3,10 +3,13 @@ import filecmp
 import msvcrt
 import os
 import re
+from distutils.version import LooseVersion
 from pathlib import Path
 from pprint import pprint
 from typing import Dict, List, Union
 
+from packaging.version import LegacyVersion
+from pkg_resources import parse_version
 from pyrotools.console import cprint, COLORS
 
 import config
@@ -15,13 +18,13 @@ import messages as m
 from constants import LATEST, \
     PREVIOUS, MOD_FILE_EXTENSIONS, DEFINITIONS_FOLDER_LOCATION, Mod, MASTER_CONTENT_FOLDERS, \
     VERSION_REGEX, COMMAND_REGEX, Commands
-from mod_functions import define, generate, verify
+from mod_functions import define, generate, verify, update
 from mod_functions.generate import all
 from utils import clear_temp_folder, trigger_error, check_valid_folder, load_json_from_file, \
     get_mod_name, print_file_result
 from mod_functions.verify import all
 
-# TODO Check with umodel if folder hieararchy inside pak file is the same when config.txt doesn't have "../../FSD"
+
 # TODO What happens if a value from a definition file is not in the game files anymore on next update?
 # TODO Test mod name with illegal characters like "/" or "?", when writing file name, will it mess up?
 # TODO definition file, contentRoot = "Folder containing the "Content" folder "InputFolder"?
@@ -44,6 +47,15 @@ def fetch_master_folders():
         cprint(COLORS.BRIGHT_CYAN, m.DONE, "\n")
     else:
         trigger_error(m.E_NO_MASTERS.format(MASTER_CONTENT_FOLDERS))
+
+    bob = {}
+    # print(globals.master_content_folders.items())
+    # print(sorted(globals.master_content_folders.items()))
+    # print(dict(sorted(globals.master_content_folders.items())))
+    # print(globals.master_content_folders.keys()[-1])
+    ordered_versions = list(sorted(globals.master_content_folders, key=LegacyVersion))
+    globals.latest_master_version = ordered_versions[-1]
+    globals.previous_master_version = ordered_versions[-2] if len(ordered_versions) > 1 else None
 
 
 def load_definition_files():
@@ -116,13 +128,6 @@ def fetch_modded_files(mod):
         # COPY ONLY WHEN NEED TO
         copy_to_temp(modded_file)
 
-        # # New modded file that was not in the definition file before
-        # if relative_path not in mod[Mod.MODDED_FILES]:
-        #     mod[Mod.MODDED_FILES][relative_path] = {}
-        #     # TODO Also check if modded file has same size as original to see if it can be parsed
-        #     # TODO Or.. Compare json index files and see if they are different
-        # modded_files.append(path)
-
         # Generate json assets with orginal file
         # bob1 = globals.unique_modded_files[path.name][LATEST]
         # json_asset_path = bob1.with_name(path.stem + '-UAsset').with_suffix('.json')
@@ -176,6 +181,7 @@ all_functions = {
     Commands.DEFINE: define.all,
     Commands.VERIFY: verify.all,
     Commands.GENERATE: generate.all,
+    Commands.UPDATE: update.all,
     # Commands.COMPARE: compare.all,
 }
 
@@ -183,6 +189,7 @@ single_functions = {
     Commands.DEFINE: define.one,
     Commands.VERIFY: verify.one,
     Commands.GENERATE: generate.one,
+    Commands.UPDATE: update.one,
     # Commands.COMPARE: compare.one,
 }
 
@@ -200,21 +207,13 @@ if __name__ == "__main__":
 
     fetch_master_folders()
 
-    # # Scan all uexp files in modded content folders
-    # scan_modded_files()
-    #
-    # # Find path to latest original uexp files
-    # check_config_value(LATEST_CONTENT_FOLDER_PATH)
-    # check_valid_folder(globals.settings[LATEST_CONTENT_FOLDER_PATH])
-    # find_modded_files_originals(LATEST_CONTENT_FOLDER_PATH, LATEST)
-
     first_run_message = f"{COLORS.BRIGHT_RED}(START HERE){COLORS.RESET}"
     while True:
         cprint(COLORS.BRIGHT_MAGENTA, "Available mod_functions:")
         cprint(COLORS.BRIGHT_BLUE, "(V)alidate your mod files")
         cprint(COLORS.BRIGHT_BLUE, "(D)efine mod definition file (existing mod -> definition file)", first_run_message)
         cprint(COLORS.BRIGHT_BLUE, "(G)enerate mod (definition file -> generate mod)")
-        cprint(COLORS.BRIGHT_BLUE, "(C)ompare updates/hotfixes")  # TODO When looking for last version, the "e" in experimental might mess up order, find best way of writing exp branch
+        cprint(COLORS.BRIGHT_BLUE, "(C)ompare updates/hotfixes")
         cprint(COLORS.BRIGHT_BLUE, "(U)pgrade to last version")
 
         cprint(COLORS.BRIGHT_MAGENTA, "Available mods:")

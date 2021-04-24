@@ -37,9 +37,11 @@ def one(mod: Dict):
     pak_config_file_path = input_folder_path.parent / 'unrealpak_config.txt'
     # pak_config_file_path = output_folder_path / f"{mod[Mod.DEFINITION_FILE_PATH].stem}.txt"
 
+    shutil.rmtree(output_folder_path, ignore_errors=True)  # Clear Output folder
     output_folder_path.mkdir(parents=True, exist_ok=True)
     paks_folder_path.mkdir(parents=True, exist_ok=True)
     input_folder_path.mkdir(parents=True, exist_ok=True)  # Should already exist, but just in case
+    shutil.rmtree(input_folder_path / "Content", ignore_errors=True)  # Clear Content folder in case old files in there
 
     for modded_file_relative_location, file_changes in mod[Mod.MODDED_FILES].items():
         # Get corresponding master file and absolute modded file path
@@ -75,19 +77,19 @@ def one(mod: Dict):
         modded_file.close()
 
     # Pack/Compile Pak file
-    "{PATH} \"{output_folder_path / Content / Paks / {Name_of_mod}_P.pak}\" -Create=\"{path_to_temporary_config.txt}\" -compress"
-
     if cmd_exists(unreal_pack_cmd := config.get_string(UNREAL_PACK_COMMAND)):
         with open(pak_config_file_path, 'w') as pak_config_file:
-            pak_config_file.write(f"\"{input_folder_path}/\"")
+            pak_config_file.write(f"\"{input_folder_path}/\" \"../../../FSD/\"")
 
-        pak_file_path = paks_folder_path / (mod_name + "_P.pak")
+        pak_file_path = paks_folder_path / (mod_name + f" {mod[Mod.VERSION_NAME]}_P.pak")
+        # pak_file_path = paks_folder_path / (mod_name + "_P.pak")
         plugin_file_name = f"{mod_name}.{PLUGIN_FILE_EXTENSION}"
         plugin_file_path = output_folder_path / plugin_file_name
         zip_archive_file_path = Path(config.get_string(GENERATED_MODS_OUTPUT_FOLDER)) / (mod_name + ".zip")
 
-        # Write .upugin file at the end, if everything is ok
-        write_mod_details_to_file(mod, plugin_file_path, PLUGIN_FILE_KEYS)
+        # Write .upugin file, then definition file for new FileVersion (and master version if it was just updated)
+        write_mod_details_to_file(mod, plugin_file_path, increment_file_version=True)
+        write_mod_details_to_file(mod, mod[Mod.DEFINITION_FILE_PATH])
 
         # TODO Hide output if not verbose
         subprocess.Popen([
@@ -103,8 +105,7 @@ def one(mod: Dict):
             zipObj.write(pak_file_path, pak_file_path.relative_to(output_folder_path.parent))
             zipObj.write(plugin_file_path, f"{mod_name}/{plugin_file_name}")
 
-        if write_mod_details_to_file(mod, plugin_file_path, PLUGIN_FILE_KEYS):
-            cprint(COLORS.BRIGHT_CYAN, m.DONE, "\n")
+        cprint(COLORS.BRIGHT_CYAN, m.DONE, "\n")
     else:
         trigger_error("Could not execute \"{}\", check setting \"{}\"".format(unreal_pack_cmd, UNREAL_PACK_COMMAND), halt=False)
 
