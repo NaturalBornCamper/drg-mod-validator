@@ -31,15 +31,14 @@ def one(mod: Dict):
     if Mod.MODDED_FILES not in mod or not mod[Mod.MODDED_FILES]:
         return trigger_error(m.E_MOD_NOT_DEFINED_YET.format(mod[Mod.DEFINITION_FILE_PATH]), halt=False)
 
-    # if mod[Mod.MASTER_VERSION] == globals.latest_master_version:
-    #     return trigger_error(m.E_SAME_VERSION.format(mod_name, globals.latest_master_version), halt=False)
+    if mod[Mod.MASTER_VERSION] == globals.latest_master_version:
+        return trigger_error(m.E_SAME_VERSION.format(mod_name, globals.latest_master_version), halt=False)
 
     mod[Mod.MASTER_VERSION] = globals.latest_master_version
 
     new_version_name = f"{globals.latest_master_version}.0"
-    # if confirm(m.SET_AUTO_VERSION.format(Mod.VERSION_NAME, new_version_name)):
-    #     mod[Mod.VERSION_NAME] = new_version_name
-    mod[Mod.VERSION_NAME] = new_version_name
+    if confirm(m.SET_AUTO_VERSION.format(Mod.VERSION_NAME, new_version_name)):
+        mod[Mod.VERSION_NAME] = new_version_name
 
     cprint(COLORS.BRIGHT_CYAN, m.DONE, "\n")
     generate.one(mod)
