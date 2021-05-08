@@ -17,3 +17,5 @@ json_index = {}
 
 latest_master_version = ''
 previous_master_version = ''
+
+verbose_output = None

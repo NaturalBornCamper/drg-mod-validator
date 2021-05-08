@@ -1,6 +1,6 @@
 from configparser import ConfigParser
 
-from typing import List
+from typing import List, Union
 
 from utils import trigger_error
 
@@ -12,23 +12,30 @@ if 'SETTINGS' not in config_parser:
     trigger_error("ERROR - Section \"SETTINGS\" not found in settings.ini")
 
 
-# TODO Default value possible, as second param, then don't trigger error, return instead
-def check_value(item: str, halt_if_not_found: bool = True) -> None:
+def check_value(item: str, halt_if_not_found: bool = True, fallback: Union[bool, str] = None) -> bool:
     if item not in config_parser['SETTINGS']:
+        if fallback is not None:
+            return False
         trigger_error(f"ERROR - \"{item}\" not found in settings.ini", halt=halt_if_not_found)
     if not config_parser['SETTINGS'][item]:
+        if fallback is not None:
+            return False
         trigger_error(f"ERROR - \"{item}\" is empty", halt=halt_if_not_found)
+    return True
 
 
-def get_string(item: str, halt_if_not_found: bool = True) -> str:
-    check_value(item, halt_if_not_found)
-    return config_parser['SETTINGS'][item] if item in config_parser['SETTINGS'] else ""
+def get_string(item: str, halt_if_not_found: bool = True, fallback: str = None) -> str:
+    if check_value(item, halt_if_not_found, fallback=fallback):
+        return config_parser['SETTINGS'][item]
+    else:
+        return fallback
 
 
-def get_boolean(item: str, fallback: bool = True) -> str:
-    check_value(item)
-    config_parser['SETTINGS'].getboolean('VERBOSE_OUTPUT', fallback=fallback)
-    return config_parser['SETTINGS'][item] if item in config_parser['SETTINGS'] else False
+def get_boolean(item: str, fallback: bool = None) -> bool:
+    if check_value(item, fallback=fallback):
+        return config_parser['SETTINGS'].getboolean(item)
+    else:
+        return fallback
 
 
 def get_list(item: str) -> List[str]:

@@ -1,13 +1,12 @@
 from pathlib import Path
 from typing import Dict
 
-from pyrotools.console import cprint, COLORS
+from pyrotools.console import COLORS
 
-import config
 import globals
 import messages as m
 from constants import Mod
-from utils import get_mod_name, trigger_error, verify_mod_file, print_file_result
+from utils import get_mod_name, trigger_error, verify_mod_file, show_message
 
 
 def all():
@@ -16,7 +15,7 @@ def all():
 
 
 def one(mod: Dict):
-    cprint(COLORS.BRIGHT_CYAN, "=" * 10, m.VERIFYING_MOD.format(get_mod_name(mod)), "=" * 10)
+    show_message(f"{'=' * 10} {m.VERIFYING_MOD.format(get_mod_name(mod))} {'=' * 10}", COLORS.BRIGHT_CYAN, important=True)
 
     # Make sure mod definition has modded files listed
     if Mod.MODDED_FILES not in mod or not mod[Mod.MODDED_FILES]:
@@ -32,14 +31,12 @@ def one(mod: Dict):
 
         modded_file_absolute_path = mod[Mod.INPUT_FOLDER] / modded_file_relative_path
         if verify_mod_file(mod, modded_file_relative_path):
-            if config.get_boolean('VERBOSE_OUTPUT', fallback=True):
-                print_file_result(modded_file_absolute_path, COLORS.BRIGHT_GREEN, m.FILE_SIZE_OK)
+            show_message(f"{modded_file_absolute_path} {COLORS.BRIGHT_GREEN}{m.FILE_SIZE_OK}")
         else:
             all_files_ok = False
-            print_file_result(modded_file_absolute_path, COLORS.BRIGHT_YELLOW, m.FILE_SIZE_WRONG)
+            show_message(f"{modded_file_absolute_path} {COLORS.BRIGHT_YELLOW}{m.FILE_SIZE_WRONG}")
 
-    if all_files_ok and not config.get_boolean('VERBOSE_OUTPUT', fallback=True):
-        cprint(COLORS.BRIGHT_GREEN, m.ALL_FILE_SIZE_OK)
+    if all_files_ok:
+        show_message(m.ALL_FILE_SIZE_OK, COLORS.BRIGHT_GREEN, important=True)
 
-    # pprint(globals.master_files)
-    cprint(COLORS.BRIGHT_CYAN, m.DONE, "\n")
+    show_message(f"{m.DONE}\n", COLORS.BRIGHT_CYAN, important=True)

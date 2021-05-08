@@ -28,6 +28,8 @@ SET_AUTO_VERSION = "Also set mod's \"{}\" to {} (y/n)? "
 
 # Generate
 GENERATING_MOD = "Generating mod \"{}\" from definition file"
+FAILED_CREATE_PAK = "pak mod file not created. Check pak'ing command output:"
+PAK_FILE_WRONG_SIZE = "pak mod file has invalid size, something went wrong. Check pak'ing command output:"
 
 # Verify
 VERIFYING_MOD = "Verifying mod \"{}\""

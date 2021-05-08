@@ -6,6 +6,8 @@ json definition file = FORWARD SLASHES OR JSON ERRORS
 json definition file = FORWARD SLASHES OR JSON ERRORS
 json definition file = FORWARD SLASHES OR JSON ERRORS
 
+To download, heat to the release page <- link
+
 The .NET Core runtime can be found at:
   - https://aka.ms/dotnet-core-applaunch?missing_runtime=true&arch=x64&rid=win10-x64
 

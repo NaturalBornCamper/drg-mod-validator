@@ -1,3 +1,4 @@
+import os.path
 import re
 import shutil
 import subprocess
@@ -12,10 +13,10 @@ import config
 import globals
 import messages as m
 from constants import GENERATED_MODS_OUTPUT_FOLDER, Mod, PLUGIN_FILE_KEYS, KEY_REGEX, SUPPORTED_PROPERTY_TYPES, \
-    UNREAL_PACK_COMMAND, PLUGIN_FILE_EXTENSION, COMPILED_PAKS_FOLDER_LOCATION
-from property_reader import PropertyWriter
+    UNREAL_PACK_COMMAND, PLUGIN_FILE_EXTENSION, COMPILED_PAKS_FOLDER_LOCATION, PAK_FILE_SIZE_MINIMUM, ZIP_GENERATED_MODS
+from hex import PropertyWriter
 from utils import get_mod_name, check_valid_folder, trigger_error, get_corresponding_master_file, load_json_from_file, \
-    get_file_json_counterpart, write_mod_details_to_file, recursive_search, cmd_exists
+    get_file_json_counterpart, write_mod_details_to_file, recursive_search, cmd_exists, show_message, stdout_to_output
 
 
 def all():
@@ -25,7 +26,7 @@ def all():
 
 def one(mod: Dict):
     mod_name = get_mod_name(mod)
-    cprint(COLORS.BRIGHT_CYAN, "=" * 10, m.GENERATING_MOD.format(mod_name), "=" * 10)
+    show_message(f"{'=' * 10} {m.GENERATING_MOD.format(mod_name)} {'=' * 10}", COLORS.BRIGHT_CYAN, important=True)
 
     if Mod.MODDED_FILES not in mod or not mod[Mod.MODDED_FILES]:
         return trigger_error(m.E_MOD_NOT_DEFINED_YET.format(mod[Mod.DEFINITION_FILE_PATH]), halt=False)
@@ -55,7 +56,7 @@ def one(mod: Dict):
         # Generate json index file (If needed) and load it
         json_index = load_json_from_file(get_file_json_counterpart(master_file_path))
 
-        print(modded_file_path)
+        show_message(modded_file_path)
 
         modded_file = open(modded_file_path, "r+b")
         for key, changes in file_changes.items():
@@ -72,7 +73,7 @@ def one(mod: Dict):
                 continue
 
             if PropertyWriter.methods[property_type](modded_file, property, changes[Mod.MODDED_VALUE]):
-                print(f"    Wrote -> {key}")
+                show_message(f"    Wrote -> {key}")
 
         modded_file.close()
 
@@ -91,21 +92,31 @@ def one(mod: Dict):
         write_mod_details_to_file(mod, plugin_file_path, increment_file_version=True)
         write_mod_details_to_file(mod, mod[Mod.DEFINITION_FILE_PATH])
 
-        # TODO Hide output if not verbose
-        subprocess.Popen([
+        proc = subprocess.Popen([
             unreal_pack_cmd,
             f"\"{pak_file_path}\"",
             f"-Create=\"{pak_config_file_path}\"",
             "-compress"
-        ]).wait()
-        # TODO Delete if cleanup only
+        ], stdout=subprocess.PIPE, bufsize=1, universal_newlines=True)
+        proc.wait()
+
+        if not pak_file_path.is_file():
+            trigger_error(m.FAILED_CREATE_PAK, halt=False)
+            print(stdout_to_output(proc.stdout))
+            return
+        elif os.path.getsize(pak_file_path) < PAK_FILE_SIZE_MINIMUM:
+            trigger_error(m.PAK_FILE_WRONG_SIZE, halt=False)
+            print(stdout_to_output(proc.stdout))
+            return
+
+        show_message(stdout_to_output(proc.stdout))
         pak_config_file_path.unlink(missing_ok=True)
 
-        with ZipFile(zip_archive_file_path, 'w') as zipObj:
-            zipObj.write(pak_file_path, pak_file_path.relative_to(output_folder_path.parent))
-            zipObj.write(plugin_file_path, f"{mod_name}/{plugin_file_name}")
+        if config.get_boolean(ZIP_GENERATED_MODS, True):
+            with ZipFile(zip_archive_file_path, 'w') as zipObj:
+                zipObj.write(pak_file_path, pak_file_path.relative_to(output_folder_path.parent))
+                zipObj.write(plugin_file_path, f"{mod_name}/{plugin_file_name}")
 
-        cprint(COLORS.BRIGHT_CYAN, m.DONE, "\n")
+        show_message(f"{m.DONE}\n", COLORS.BRIGHT_CYAN, important=True)
     else:
         trigger_error("Could not execute \"{}\", check setting \"{}\"".format(unreal_pack_cmd, UNREAL_PACK_COMMAND), halt=False)
-

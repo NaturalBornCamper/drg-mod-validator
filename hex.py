@@ -2,7 +2,6 @@ import os
 import struct
 from pprint import pprint
 
-# TODO Change name from property_reader to something else as it's also a writer now
 
 class StructProperty:
     class RandInterval:

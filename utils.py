@@ -5,7 +5,7 @@ import subprocess
 import sys
 from pathlib import Path
 from pyclbr import Class
-from typing import Dict, Union, List
+from typing import Dict, Union, List, IO, AnyStr
 
 from pyrotools.console import cprint, COLORS
 
@@ -16,7 +16,9 @@ from globals import temp_folder
 import globals
 
 
-# TODO show_message(message, color) that will check if verbose is activated
+def show_message(message, color=COLORS.RESET, important=False):
+    if globals.verbose_output or important:
+        cprint(color, message)
 
 
 def clear_temp_folder() -> None:
@@ -25,7 +27,7 @@ def clear_temp_folder() -> None:
 
 # TODO Cleanup before ending (Only if halt and cleanup setting is true)
 def trigger_error(message: str, halt: bool = True) -> None:
-    cprint(COLORS.BRIGHT_RED, message)
+    show_message(message, COLORS.BRIGHT_RED, important=True)
     if halt:
         os.system("pause")
         sys.exit()
@@ -50,7 +52,7 @@ def get_file_json_counterpart(path: Path) -> Path:
     if not json_index_path.is_file():
         # Make sure master_file conterpart exists
         master_file_counterpart_path = get_file_counterpart(path)
-        if not master_file_counterpart_path.exists():
+        if not master_file_counterpart_path.is_file():
             trigger_error(f"ERROR - Needed file \"{master_file_counterpart_path}\" doesn't exist. Was it deleted?")
 
         # TODO Detect if error when there is output, or maybe command returns a code, like 0 = no error?
@@ -123,7 +125,6 @@ def get_mod_name(mod: Dict) -> str:
 
 def print_file_result(filename: Path, color: str, message: str) -> None:
     print("File:", filename, end=' ')
-    cprint(color, message)
 
 
 # Check modded file size compared to master file size
@@ -162,10 +163,10 @@ def get_corresponding_master_file(mod: Dict, relative_modded_file_path: Path) ->
         if guessed_location.is_file():
             current_master_files[relative_modded_file_path.name] = guessed_location
         else:
-            cprint(COLORS.BRIGHT_CYAN, "\"{}\" has wrong folder structure, searching for it in \"{}\" ..".format(
+            show_message("\"{}\" has wrong folder structure, searching for it in \"{}\" ..".format(
                 relative_modded_file_path.name,
                 globals.master_content_folders[current_master_version]
-            ))
+            ), COLORS.BRIGHT_CYAN, important=True)
             for found_file in globals.master_content_folders[current_master_version].rglob(
                     relative_modded_file_path.name):
                 current_master_files[relative_modded_file_path.name] = found_file
@@ -180,7 +181,6 @@ def get_corresponding_master_file(mod: Dict, relative_modded_file_path: Path) ->
 
 
 def confirm(message: str) -> bool:
-    # cprint(COLORS.BRIGHT_YELLOW, message)
     answer = input(COLORS.BRIGHT_YELLOW + message + COLORS.RESET).lower()
     return answer == 'y'
 
@@ -204,6 +204,9 @@ def recursive_search(data: Union[List, Dict], queries: List):
             return data[query]
 
 
-def cmd_exists(cmd):
+def cmd_exists(cmd: str) -> bool:
     return shutil.which(cmd) is not None
 
+
+def stdout_to_output(stdout: IO[AnyStr]) -> str:
+    return "".join(stdout.readlines())
