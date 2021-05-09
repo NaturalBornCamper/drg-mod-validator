@@ -9,7 +9,7 @@ import messages as m
 from constants import Mod, MOD_FILE_EXTENSIONS, SUPPORTED_PROPERTY_TYPES
 from hex import PropertyReader
 from utils import check_valid_folder, confirm, verify_mod_file, trigger_error, get_corresponding_master_file, \
-    load_json_from_file, get_file_json_counterpart, write_mod_details_to_file, show_message
+    load_json_from_file, get_json_index_filepath, write_mod_details_to_file, show_message
 
 
 def all():
@@ -50,7 +50,8 @@ def one(mod: Dict):
         master_file_path = get_corresponding_master_file(mod, Path(modded_file_relative_path))
 
         # Generate json index file (If needed) and load it
-        json_index = load_json_from_file(get_file_json_counterpart(master_file_path))
+        if not (json_index := load_json_from_file(get_json_index_filepath(master_file_path))):
+            return False
 
         master_file = open(master_file_path, "rb")
         modded_file = open(modded_file_path, "rb")

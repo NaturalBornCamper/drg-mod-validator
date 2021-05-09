@@ -16,7 +16,7 @@ from constants import GENERATED_MODS_OUTPUT_FOLDER, Mod, PLUGIN_FILE_KEYS, KEY_R
     UNREAL_PACK_COMMAND, PLUGIN_FILE_EXTENSION, COMPILED_PAKS_FOLDER_LOCATION, PAK_FILE_SIZE_MINIMUM, ZIP_GENERATED_MODS
 from hex import PropertyWriter
 from utils import get_mod_name, check_valid_folder, trigger_error, get_corresponding_master_file, load_json_from_file, \
-    get_file_json_counterpart, write_mod_details_to_file, recursive_search, cmd_exists, show_message, stdout_to_output
+    get_json_index_filepath, write_mod_details_to_file, recursive_search, cmd_exists, show_message, stdout_to_output
 
 
 def all():
@@ -54,7 +54,8 @@ def one(mod: Dict):
         shutil.copy(master_file_path, modded_file_path)
 
         # Generate json index file (If needed) and load it
-        json_index = load_json_from_file(get_file_json_counterpart(master_file_path))
+        if not (json_index := load_json_from_file(get_json_index_filepath(master_file_path))):
+            return False
 
         show_message(modded_file_path)
 
@@ -101,15 +102,16 @@ def one(mod: Dict):
         proc.wait()
 
         if not pak_file_path.is_file():
-            trigger_error(m.FAILED_CREATE_PAK, halt=False)
+            trigger_error(m.E_FAILED_CREATE_PAK, halt=False)
             print(stdout_to_output(proc.stdout))
             return
         elif os.path.getsize(pak_file_path) < PAK_FILE_SIZE_MINIMUM:
-            trigger_error(m.PAK_FILE_WRONG_SIZE, halt=False)
+            trigger_error(m.E_PAK_FILE_WRONG_SIZE, halt=False)
             print(stdout_to_output(proc.stdout))
             return
+        else:
+            show_message(stdout_to_output(proc.stdout))
 
-        show_message(stdout_to_output(proc.stdout))
         pak_config_file_path.unlink(missing_ok=True)
 
         if config.get_boolean(ZIP_GENERATED_MODS, True):
@@ -119,4 +121,4 @@ def one(mod: Dict):
 
         show_message(f"{m.DONE}\n", COLORS.BRIGHT_CYAN, important=True)
     else:
-        trigger_error("Could not execute \"{}\", check setting \"{}\"".format(unreal_pack_cmd, UNREAL_PACK_COMMAND), halt=False)
+        trigger_error(m.E_COMMAND_NOT_FOUND.format(unreal_pack_cmd, UNREAL_PACK_COMMAND), halt=False)

@@ -3,6 +3,7 @@ import filecmp
 import msvcrt
 import os
 import re
+import subprocess
 from distutils.version import LooseVersion
 from pathlib import Path
 from pprint import pprint
@@ -17,19 +18,18 @@ import globals
 import messages as m
 from constants import LATEST, \
     PREVIOUS, MOD_FILE_EXTENSIONS, DEFINITIONS_FOLDER_LOCATION, Mod, MASTER_CONTENT_FOLDERS, \
-    VERSION_REGEX, COMMAND_REGEX, Commands, VERBOSE_OUTPUT
+    VERSION_REGEX, COMMAND_REGEX, Commands, VERBOSE_OUTPUT, JSON_PARSER_PATH
 from mod_functions import define, generate, verify, update
 from mod_functions.generate import all
 from utils import clear_temp_folder, trigger_error, check_valid_folder, load_json_from_file, \
-    get_mod_name, print_file_result, show_message
+    get_mod_name, print_file_result, show_message, stdout_to_output
 from mod_functions.verify import all
 
 
 # TODO Add bool, so easy!
+# TODO COMPARE UPDATES
 # TODO What happens if a value from a definition file is not in the game files anymore on next update?
 # TODO Test mod name with illegal characters like "/" or "?", when writing file name, will it mess up?
-# TODO definition file, contentRoot help => Folder containing the "Content" folder, "InputFolder"?
-# TODO Advanced options in settings.ini, for example always set version to 34.1.0 when update (skip confirm)
 
 
 def fetch_master_folders():
@@ -213,19 +213,17 @@ if __name__ == "__main__":
 
     first_run_message = f"{COLORS.BRIGHT_RED}(START HERE){COLORS.RESET}"
     while True:
-        show_message("Available mod_functions:", COLORS.BRIGHT_MAGENTA, important=True)
-        show_message("(V)alidate your mod files", COLORS.BRIGHT_BLUE, important=True)
-        show_message(f"(D)efine mod definition file (existing mod -> definition file) {first_run_message}", COLORS.BRIGHT_BLUE, important=True)
-        show_message("(G)enerate mod (definition file -> generate mod)", COLORS.BRIGHT_BLUE, important=True)
-        show_message("(C)ompare updates/hotfixes", COLORS.BRIGHT_BLUE, important=True)
-        show_message("(U)pgrade to last version", COLORS.BRIGHT_BLUE, important=True)
+        show_message(m.AVAILABLE_FUNCTIONS, COLORS.BRIGHT_MAGENTA, important=True)
+        show_message(m.VALIDATE, COLORS.BRIGHT_BLUE, important=True)
+        show_message(m.DEFINE.format(first_run_message), COLORS.BRIGHT_BLUE, important=True)
+        show_message(m.GENERATE, COLORS.BRIGHT_BLUE, important=True)
+        show_message(m.COMPARE, COLORS.BRIGHT_BLUE, important=True)
+        show_message(m.UPGRADE, COLORS.BRIGHT_BLUE, important=True)
 
-        show_message("Available mods:", COLORS.BRIGHT_MAGENTA, important=True)
+        show_message(m.AVAILABLE_MODS, COLORS.BRIGHT_MAGENTA, important=True)
         for count, (key, selected_mod) in enumerate(globals.mods.items(), start=1):
             show_message(f"({count}) {get_mod_name(selected_mod)}", important=True)
-        command = input(
-            COLORS.BRIGHT_MAGENTA + "Input function and mod (function + mod number) (ex \"D2\"): " + COLORS.RESET
-        ).lower()
+        command = input(COLORS.BRIGHT_MAGENTA + m.INPUT_FUNCTION + COLORS.RESET).lower()
         # cprint(COLORS.BRIGHT_MAGENTA, "ex1: \"d1\" = Define mod 1     ex2: \"da\" = Define all mods")
 
         matches = re.search(pattern=COMMAND_REGEX, string=command, flags=re.IGNORECASE)

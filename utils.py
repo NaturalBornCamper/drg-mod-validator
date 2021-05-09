@@ -10,6 +10,7 @@ from typing import Dict, Union, List, IO, AnyStr
 from pyrotools.console import cprint, COLORS
 
 import config
+import messages as m
 from constants import Mod, JSON_PARSER_PATH, MASTER_CONTENT_FOLDERS, DEFINITION_FILE_KEYS, CREATED_BY, \
     PLUGIN_FILE_EXTENSION, PLUGIN_FILE_KEYS
 from globals import temp_folder
@@ -35,7 +36,7 @@ def trigger_error(message: str, halt: bool = True) -> None:
 
 def check_valid_folder(folder: Union[Path, str]) -> None:
     if not Path(folder).is_dir():
-        trigger_error("ERROR - \"{}\" is not a valid folder, verify settings.ini file".format(folder))
+        trigger_error(m.E_INVALID_FOLDER.format(folder))
 
 
 def get_file_counterpart(path: Path) -> Path:
@@ -45,24 +46,32 @@ def get_file_counterpart(path: Path) -> Path:
         return path.with_suffix(".uasset")
 
 
-# Returns file's json counterpart path if exist, or generate it if not
-def get_file_json_counterpart(path: Path) -> Path:
+# Returns file's json index path if exist, or generate it if not
+def get_json_index_filepath(path: Path) -> Union[Path, bool]:
     json_index_path = path.with_name(path.stem + "-UAsset").with_suffix(".json")
 
     if not json_index_path.is_file():
         # Make sure master_file conterpart exists
         master_file_counterpart_path = get_file_counterpart(path)
         if not master_file_counterpart_path.is_file():
-            trigger_error(f"ERROR - Needed file \"{master_file_counterpart_path}\" doesn't exist. Was it deleted?")
+            trigger_error(m.E_COUNTERPART_NOT_FOUND.format(master_file_counterpart_path))
 
-        # TODO Detect if error when there is output, or maybe command returns a code, like 0 = no error?
-        subprocess.Popen([config.get_string(JSON_PARSER_PATH), path]).wait()
-        if not json_index_path.is_file():
-            trigger_error(
-                "ERROR - Unable to create \"{}\", try running the parser manually and see if you get errors".format(
-                    json_index_path
-                )
-            )
+        proc = subprocess.Popen(
+            [config.get_string(JSON_PARSER_PATH), path],
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            bufsize=1, universal_newlines=True
+        )
+        rc = proc.wait()
+
+        if rc != 0 or not json_index_path.is_file():
+            trigger_error(m.E_CANNOT_CREATE_INDEX.format(json_index_path).format(path), halt=False)
+            print(stdout_to_output(proc.stderr if rc != 0 else proc.stdout))
+            return False
+        else:
+            show_message(stdout_to_output(proc.stdout))
+
     return json_index_path
 
 
@@ -71,7 +80,7 @@ def load_json_from_file(file_path: Path) -> Dict:
         try:
             json_data = json.load(file)
         except ValueError as e:
-            trigger_error(f"ERROR - \"{file_path}\" has invalid json data: {e}")
+            trigger_error(m.E_INVALID_JSON_FORMATTING.format(file_path, e))
 
     return json_data
 
@@ -104,14 +113,14 @@ def write_mod_details_to_file(mod: Dict, destination_file_path: Path, increment_
     try:
         json.dumps(data, ensure_ascii=False, indent=4)
     except Exception as e:
-        trigger_error(f"ERROR - Failed to make json: {e}")
+        trigger_error(m.E_JSON_ENCODING_FAILED.format(e))
         return False
 
     with open(destination_file_path, 'w', encoding='utf-8') as definition_file:
         try:
             json.dump(data, definition_file, ensure_ascii=False, indent=4)
         except Exception as e:
-            trigger_error(f"ERROR - Failed to write mod to \"{destination_file_path}\": {e}")
+            trigger_error(m.E_FAILED_TO_WRITE_MOD_FILE.format(destination_file_path, e))
 
     return True
 
@@ -141,11 +150,9 @@ def verify_mod_file(mod: Dict, modded_file_relative_path: Path, modded_file_path
 def get_corresponding_master_file(mod: Dict, relative_modded_file_path: Path) -> Path:
     current_master_version = mod[Mod.MASTER_VERSION]
     if current_master_version not in globals.master_content_folders:
-        trigger_error("ERROR - You don't have version {} in settings.ini {} needed by \"{}\"".format(
-            current_master_version,
-            MASTER_CONTENT_FOLDERS,
-            mod[Mod.DEFINITION_FILE_PATH]
-        ))
+        trigger_error(
+            m.E_MISSING_MASTER.format(current_master_version, MASTER_CONTENT_FOLDERS, mod[Mod.DEFINITION_FILE_PATH])
+        )
 
     # Create dictionary for that master version if if doesn't exist yet
     if current_master_version not in globals.master_files:
@@ -163,16 +170,19 @@ def get_corresponding_master_file(mod: Dict, relative_modded_file_path: Path) ->
         if guessed_location.is_file():
             current_master_files[relative_modded_file_path.name] = guessed_location
         else:
-            show_message("\"{}\" has wrong folder structure, searching for it in \"{}\" ..".format(
-                relative_modded_file_path.name,
-                globals.master_content_folders[current_master_version]
-            ), COLORS.BRIGHT_CYAN, important=True)
+            show_message(
+                m.WRONG_FOLDER_STRUCTURE.format(
+                    relative_modded_file_path.name,
+                    globals.master_content_folders[current_master_version]
+                ),
+                COLORS.BRIGHT_CYAN, important=True
+            )
             for found_file in globals.master_content_folders[current_master_version].rglob(
                     relative_modded_file_path.name):
                 current_master_files[relative_modded_file_path.name] = found_file
                 break
             if relative_modded_file_path.name not in current_master_files:
-                trigger_error("ERROR - Could not find \"{}\" in \"{}\"".format(
+                trigger_error(m.E_MASTER_FILE_NOT_FOUND.format(
                     relative_modded_file_path.name,
                     globals.master_content_folders[current_master_version],
                 ))
@@ -196,7 +206,7 @@ def recursive_search(data: Union[List, Dict], queries: List):
                     return recursive_search(dictionary, queries)
                 else:
                     return dictionary
-        trigger_error(f"NOT FOUND [{query}]")
+        trigger_error(m.E_INDEX_NOT_FOUND.format(query))
     else:  # DICTIONARY = direct access
         if len(queries):
             return recursive_search(data[query], queries)
@@ -209,4 +219,5 @@ def cmd_exists(cmd: str) -> bool:
 
 
 def stdout_to_output(stdout: IO[AnyStr]) -> str:
+    # return stdout.readline()
     return "".join(stdout.readlines())
