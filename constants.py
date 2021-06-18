@@ -15,7 +15,7 @@ PREVIOUS = 'PREVIOUS_VERSION'
 
 MOD_FILE_EXTENSIONS = ['.uexp', '.uasset']
 
-SUPPORTED_PROPERTY_TYPES = ["IntProperty", "FloatProperty", "TextProperty", "ArrayProperty", "StructProperty"]
+SUPPORTED_PROPERTY_TYPES = ["BoolProperty", "IntProperty", "FloatProperty", "TextProperty", "ArrayProperty", "StructProperty"]
 
 PLUGIN_FILE_EXTENSION = 'uplugin'
 COMPILED_PAKS_FOLDER_LOCATION = 'Content/Paks'

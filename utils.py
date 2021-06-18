@@ -91,6 +91,9 @@ def write_mod_details_to_file(mod: Dict, destination_file_path: Path, increment_
     else:
         keys = DEFINITION_FILE_KEYS
 
+    if increment_file_version:
+        mod[Mod.FILE_VERSION] = (int(mod[Mod.FILE_VERSION]) if mod[Mod.FILE_VERSION] else 0) + 1
+
     data = {}
     for key in keys:
         if key in mod:
@@ -106,9 +109,6 @@ def write_mod_details_to_file(mod: Dict, destination_file_path: Path, increment_
 
     if not data[Mod.CREATED_BY]:
         data[Mod.CREATED_BY] = config.get_string(CREATED_BY)
-
-    if increment_file_version:
-        data[Mod.FILE_VERSION] = (int(data[Mod.FILE_VERSION]) if data[Mod.FILE_VERSION] else 0) + 1
 
     try:
         json.dumps(data, ensure_ascii=False, indent=4)

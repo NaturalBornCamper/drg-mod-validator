@@ -26,7 +26,6 @@ from utils import clear_temp_folder, trigger_error, check_valid_folder, load_jso
 from mod_functions.verify import all
 
 
-# TODO Add bool, so easy!
 # TODO COMPARE UPDATES
 # TODO What happens if a value from a definition file is not in the game files anymore on next update?
 # TODO Test mod name with illegal characters like "/" or "?", when writing file name, will it mess up?

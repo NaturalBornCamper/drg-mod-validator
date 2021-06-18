@@ -13,6 +13,10 @@ class StructProperty:
 
 class PropertyReader:
     @staticmethod
+    def read_booleans(file, count=1):
+        return struct.unpack(str(count) + 'h', file.read(count * 2))
+
+    @staticmethod
     def read_ints(file, count=1):
         return struct.unpack(str(count) + 'i', file.read(count * 4))
 
@@ -21,12 +25,21 @@ class PropertyReader:
         return [round(value, 3) for value in struct.unpack(str(count) + 'f', file.read(count * 4))]
 
     @staticmethod
+    def read_single_bool(file):
+        return PropertyReader.read_booleans(file, 1)[0]
+
+    @staticmethod
     def read_single_int(file):
         return PropertyReader.read_ints(file, 1)[0]
 
     @staticmethod
     def read_single_float(file):
         return PropertyReader.read_floats(file, 1)[0]
+
+    @staticmethod
+    def BoolProperty(file, property):
+        file.seek(property['Value Offset'])
+        return PropertyReader.read_single_bool(file)
 
     @staticmethod
     def IntProperty(file, property):
@@ -46,7 +59,6 @@ class PropertyReader:
         text_bytes = struct.unpack(str(property_size) + 'c', file.read(property_size))
         return [i.decode('ISO-8859-1') for i in text_bytes]
 
-
     @staticmethod
     def ArrayProperty(file, property):
         # If this property tag data is not supported, pass it
@@ -56,6 +68,10 @@ class PropertyReader:
         elif property['Tag Data']['Name'] == 'IntProperty':
             file.seek(property['Value Offset'] + 4)
             return PropertyReader.read_ints(file, property['Data Value']['Count'])
+        # BoolProperty in ArrayProperty not tested, didn't see any ArrayProperty[BoolProperty] to test
+        elif property['Tag Data']['Name'] == 'BoolProperty':
+            file.seek(property['Value Offset'] + 4)
+            return PropertyReader.read_booleans(file, property['Data Value']['Count'])
         else:
             return False
 
@@ -79,6 +95,7 @@ class PropertyReader:
             return False
 
     methods = {
+        'BoolProperty': BoolProperty.__func__,
         'IntProperty': IntProperty.__func__,
         'FloatProperty': FloatProperty.__func__,
         'TextProperty': TextProperty.__func__,
@@ -89,6 +106,10 @@ class PropertyReader:
 
 class PropertyWriter:
     @staticmethod
+    def write_booleans(file, values, count=1):
+        file.write(struct.pack(str(count) + 'h', *values))
+
+    @staticmethod
     def write_ints(file, values, count=1):
         file.write(struct.pack(str(count) + 'i', *values))
 
@@ -97,12 +118,22 @@ class PropertyWriter:
         file.write(struct.pack(str(count) + 'f', *values))
 
     @staticmethod
+    def write_single_bool(file, value):
+        PropertyWriter.write_booleans(file, [value])
+
+    @staticmethod
     def write_single_int(file, value):
         PropertyWriter.write_ints(file, [value])
 
     @staticmethod
     def write_single_float(file, value):
         PropertyWriter.write_floats(file, [value])
+
+    @staticmethod
+    def BoolProperty(file, property, modded_value):
+        file.seek(property['Value Offset'])
+        PropertyWriter.write_single_bool(file, modded_value)
+        return True
 
     @staticmethod
     def IntProperty(file, property, modded_value):
@@ -135,6 +166,11 @@ class PropertyWriter:
             file.seek(property['Value Offset'] + 4)
             PropertyWriter.write_ints(file, modded_value, property['Data Value']['Count'])
             return True
+        # BoolProperty in ArrayProperty not tested, didn't see any ArrayProperty[BoolProperty] to test
+        elif property['Tag Data']['Name'] == 'BoolProperty':
+            file.seek(property['Value Offset'] + 4)
+            PropertyWriter.write_booleans(file, modded_value, property['Data Value']['Count'])
+            return True
         return False
 
     @staticmethod
@@ -153,6 +189,7 @@ class PropertyWriter:
         return False
 
     methods = {
+        'BoolProperty': BoolProperty.__func__,
         'IntProperty': IntProperty.__func__,
         'FloatProperty': FloatProperty.__func__,
         'TextProperty': TextProperty.__func__,
