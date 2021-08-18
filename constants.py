@@ -20,7 +20,7 @@ SUPPORTED_PROPERTY_TYPES = ["BoolProperty", "IntProperty", "FloatProperty", "Tex
 PLUGIN_FILE_EXTENSION = 'uplugin'
 COMPILED_PAKS_FOLDER_LOCATION = 'Content/Paks'
 
-VERSION_REGEX = r'u(\d{2}e?\.\d{1,5})'
+VERSION_REGEX = r'u(\d{2}(\.e\d{5})?(\.\d{0,2})?(\.e\d{5})?)'
 COMMAND_REGEX = r'^([a-zA-Z])(\d{1,3}|a)$'
 KEY_REGEX = r'\[(.+?)\]'
 
