@@ -56,21 +56,24 @@ def get_json_index_filepath(path: Path) -> Union[Path, bool]:
         if not master_file_counterpart_path.is_file():
             trigger_error(m.E_COUNTERPART_NOT_FOUND.format(master_file_counterpart_path))
 
-        proc = subprocess.Popen(
-            [config.get_string(JSON_PARSER_PATH), path],
-            stdin=subprocess.DEVNULL,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            bufsize=1, universal_newlines=True
-        )
-        rc = proc.wait()
+        if cmd_exists(json_parser_cmd := config.get_string(JSON_PARSER_PATH)):
+            proc = subprocess.Popen(
+                [json_parser_cmd, path],
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                bufsize=1, universal_newlines=True
+            )
+            rc = proc.wait()
 
-        if rc != 0 or not json_index_path.is_file():
-            trigger_error(m.E_CANNOT_CREATE_INDEX.format(json_index_path).format(path), halt=False)
-            print(stdout_to_output(proc.stderr if rc != 0 else proc.stdout))
-            return False
+            if rc != 0 or not json_index_path.is_file():
+                trigger_error(m.E_CANNOT_CREATE_INDEX.format(json_index_path).format(path), halt=False)
+                print(stdout_to_output(proc.stderr if rc != 0 else proc.stdout))
+                return False
+            else:
+                show_message(stdout_to_output(proc.stdout))
         else:
-            show_message(stdout_to_output(proc.stdout))
+            trigger_error(m.E_COMMAND_NOT_FOUND.format(json_parser_cmd, JSON_PARSER_PATH), halt=True)
 
     return json_index_path
 
