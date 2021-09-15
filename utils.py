@@ -39,6 +39,13 @@ def check_valid_folder(folder: Union[Path, str]) -> None:
         trigger_error(m.E_INVALID_FOLDER.format(folder))
 
 
+def ensure_valid_folder(folder: Union[Path, str]) -> None:
+    path_to_check = Path(folder)
+    path_to_check.mkdir(parents=True, exist_ok=True)
+    if not path_to_check.is_dir():
+        trigger_error(m.E_CANNOT_CREATE_FOLDER.format(folder))
+
+
 def get_file_counterpart(path: Path) -> Path:
     if path.suffix == ".uasset":
         return path.with_suffix(".uexp")

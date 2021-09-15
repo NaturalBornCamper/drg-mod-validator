@@ -22,7 +22,7 @@ from constants import LATEST, \
 from mod_functions import define, generate, verify, update
 from mod_functions.generate import all
 from utils import clear_temp_folder, trigger_error, check_valid_folder, load_json_from_file, \
-    get_mod_name, print_file_result, show_message, stdout_to_output
+    get_mod_name, print_file_result, show_message, stdout_to_output, ensure_valid_folder
 from mod_functions.verify import all
 
 
@@ -69,8 +69,7 @@ def load_definition_files():
         mod[Mod.DEFINITION_FILE_PATH] = definition_file_path
         if Mod.INPUT_FOLDER not in mod:
             trigger_error(m.E_DEFINITION_NO_INPUT_FOLDER.format(definition_file_path, Mod.INPUT_FOLDER))
-        elif not Path(mod[Mod.INPUT_FOLDER]).is_dir():
-            trigger_error(m.E_DEFINITION_INVALID_INPUT_FOLDER.format(mod[Mod.INPUT_FOLDER], definition_file_path))
+        ensure_valid_folder(mod[Mod.INPUT_FOLDER])
 
         # Sanitize modded files location to make sure they don't start with a slash
         if Mod.MODDED_FILES in mod:

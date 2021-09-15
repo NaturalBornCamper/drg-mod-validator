@@ -11,6 +11,7 @@ E_SETTING_ITEM_EMPTY = "ERROR - \"{}\" is empty"
 
 # Utils
 E_INVALID_FOLDER = "ERROR - \"{}\" is not a valid folder, verify settings.ini file"
+E_CANNOT_CREATE_FOLDER = "ERROR - Cannot create folder \"{}\""
 E_COUNTERPART_NOT_FOUND = "ERROR - Needed file \"{}\" doesn't exist. Was it deleted?"
 E_CANNOT_CREATE_INDEX = "ERROR - Unable to create \"{}\". Check pak'ing command output:"
 E_INVALID_JSON_FORMATTING = "ERROR - \"{}\" has invalid json data: {}"
@@ -39,7 +40,6 @@ E_NO_MASTERS = "ERROR - Settings files \"{}\" doesn't contain any valid folders"
 # load_definition_files()
 FETCHING_DEFINITIONS = "Scanning for mod definition files"
 E_DEFINITION_NO_INPUT_FOLDER = "ERROR - \"{}\" doesn't have a {}"
-E_DEFINITION_INVALID_INPUT_FOLDER = "ERROR - \"{}\" in \"{}\" is not a valid folder"
 E_NO_DEFINITIONS = "ERROR - \"{}\" doesn't contain any definition files"
 
 # Define
@@ -56,6 +56,7 @@ SET_AUTO_VERSION = "Also set mod's \"{}\" to {} (y/n)? "
 GENERATING_MOD = "Generating mod \"{}\" from definition file"
 E_FAILED_CREATE_PAK = "ERROR - pak mod file not created. Check pak'ing command output:"
 E_PAK_FILE_WRONG_SIZE = "ERROR - pak mod file has invalid size, something went wrong. Check pak'ing command output:"
+E_FAILED_CREATE_ZIP = "ERROR - zip file could not be created"
 E_COMMAND_NOT_FOUND = "ERROR - Command \"{}\" does not exist, check setting \"{}\""
 
 # Verify
