@@ -29,8 +29,9 @@ from mod_functions.verify import all
 # TODO COMPARE UPDATES
 # TODO What happens if a value from a definition file is not in the game files anymore on next update?
 # TODO Test mod name with illegal characters like "/" or "?", when writing file name, will it mess up?
+# TODO Remove from definition file: FileVersion, Description, Category, Author, URL
 
-
+# TODO in settings.ini, only list parent folder then scan each folder that has a "content" folder, then take extract version from parent
 def fetch_master_folders():
     show_message(f"{'=' * 10} {m.FETCHING_MASTERS} {'=' * 10}", COLORS.BRIGHT_CYAN, important=True)
     master_content_folders = config.get_list(MASTER_CONTENT_FOLDERS)
