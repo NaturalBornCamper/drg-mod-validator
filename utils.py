@@ -12,7 +12,7 @@ from pyrotools.console import cprint, COLORS
 import config
 import messages as m
 from constants import Mod, JSON_PARSER_PATH, MASTER_CONTENT_FOLDERS, DEFINITION_FILE_KEYS, CREATED_BY, \
-    PLUGIN_FILE_EXTENSION, PLUGIN_FILE_KEYS
+    PLUGIN_FILE_EXTENSION, PLUGIN_FILE_KEYS, DAUM_PATH, DAUM_JSON_SCRIPT
 from globals import temp_folder
 import globals
 
@@ -29,6 +29,14 @@ def clear_temp_folder() -> None:
 # TODO Cleanup before ending (Only if halt and cleanup setting is true)
 def trigger_error(message: str, halt: bool = True) -> None:
     show_message(message, COLORS.BRIGHT_RED, important=True)
+    if halt:
+        os.system("pause")
+        sys.exit()
+
+
+# TODO Cleanup before ending (Only if halt and cleanup setting is true)
+def trigger_warning(message: str, halt: bool = True) -> None:
+    show_message(message, COLORS.BRIGHT_YELLOW, important=True)
     if halt:
         os.system("pause")
         sys.exit()
@@ -53,36 +61,63 @@ def get_file_counterpart(path: Path) -> Path:
         return path.with_suffix(".uasset")
 
 
-# Returns file's json index path if exist, or generate it if not
-def get_json_index_filepath(path: Path) -> Union[Path, bool]:
-    json_index_path = path.with_name(path.stem + "-UAsset").with_suffix(".json")
+# Returns file's json index path if exist, or generate it using the Parser if not
+def get_parser_json_index_filepath(asset_path: Path) -> Union[Path, bool]:
+    json_index_path = asset_path.with_name(asset_path.stem + "-UAsset").with_suffix(".json")
 
     if not json_index_path.is_file():
-        # Make sure master_file conterpart exists
-        master_file_counterpart_path = get_file_counterpart(path)
-        if not master_file_counterpart_path.is_file():
-            trigger_error(m.E_COUNTERPART_NOT_FOUND.format(master_file_counterpart_path))
-
         if cmd_exists(json_parser_cmd := config.get_string(JSON_PARSER_PATH)):
-            proc = subprocess.Popen(
-                [json_parser_cmd, path],
-                stdin=subprocess.DEVNULL,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                bufsize=1, universal_newlines=True
-            )
-            rc = proc.wait()
-
-            if rc != 0 or not json_index_path.is_file():
-                trigger_error(m.E_CANNOT_CREATE_INDEX.format(json_index_path).format(path), halt=False)
-                print(stdout_to_output(proc.stderr if rc != 0 else proc.stdout))
-                return False
-            else:
-                show_message(stdout_to_output(proc.stdout))
+            command_line = [json_parser_cmd, asset_path]
+            generate_json_index(asset_path, json_index_path, command_line)
         else:
             trigger_error(m.E_COMMAND_NOT_FOUND.format(json_parser_cmd, JSON_PARSER_PATH), halt=True)
 
     return json_index_path
+
+
+# Returns file's json index path if exist, or generate it using DAUM if not
+def get_daum_json_index_filepath(asset_path: Path) -> Union[Path, bool]:
+    json_index_path = asset_path.with_name(asset_path.stem).with_suffix(".json")
+
+    if not json_index_path.is_file():
+        if cmd_exists(json_daum_cmd := config.get_string(DAUM_PATH)):
+            uasset_path = asset_path.with_name(asset_path.stem).with_suffix(".uasset")
+            with open(DAUM_JSON_SCRIPT, "w") as script:
+                script.write(f"-f \"{uasset_path.as_posix()}\"\n")
+                script.write("PreloadPatterns\n")
+                script.write("IndividualJParse")
+
+            command_line = [json_daum_cmd, "-s", Path(DAUM_JSON_SCRIPT).absolute().as_posix()]
+            generate_json_index(asset_path, json_index_path, command_line)
+        else:
+            trigger_error(m.E_COMMAND_NOT_FOUND.format(json_daum_cmd, DAUM_PATH), halt=True)
+
+    return json_index_path
+
+
+# Executes the command to generate json from either DAUM or the Parser
+# Should only be called by the 2 functions above
+def generate_json_index(asset_path: Path, json_index_path: Path, command_line: List) -> Union[Path, bool]:
+    # Make sure master_file conterpart exists
+    master_file_counterpart_path = get_file_counterpart(asset_path)
+    if not master_file_counterpart_path.is_file():
+        trigger_error(m.E_COUNTERPART_NOT_FOUND.format(master_file_counterpart_path))
+
+    proc = subprocess.Popen(
+        command_line,
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        bufsize=1, universal_newlines=True
+    )
+    rc = proc.wait()
+
+    if rc != 0 or not json_index_path.is_file():
+        trigger_error(m.E_CANNOT_CREATE_INDEX.format(json_index_path).format(asset_path), halt=False)
+        print(stdout_to_output(proc.stderr if rc != 0 else proc.stdout))
+        return False
+    else:
+        show_message(stdout_to_output(proc.stdout))
 
 
 def load_json_from_file(file_path: Path) -> Dict:

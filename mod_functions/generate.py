@@ -16,7 +16,8 @@ from constants import GENERATED_MODS_OUTPUT_FOLDER, Mod, PLUGIN_FILE_KEYS, KEY_R
     UNREAL_PACK_COMMAND, PLUGIN_FILE_EXTENSION, COMPILED_PAKS_FOLDER_LOCATION, PAK_FILE_SIZE_MINIMUM
 from hex import PropertyWriter
 from utils import get_mod_name, check_valid_folder, trigger_error, get_corresponding_master_file, load_json_from_file, \
-    get_json_index_filepath, write_mod_details_to_file, recursive_search, cmd_exists, show_message, stdout_to_output
+    get_parser_json_index_filepath, write_mod_details_to_file, recursive_search, cmd_exists, show_message, stdout_to_output, \
+    get_daum_json_index_filepath
 
 
 def all():
@@ -50,8 +51,13 @@ def one(mod: Dict):
         modded_file_path.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy(master_file_path, modded_file_path)
 
-        # Generate json index file (If needed) and load it
-        if not (json_index := load_json_from_file(get_json_index_filepath(master_file_path))):
+        # Generate json index file using DAUM (If needed) and load it
+        # Not used at the moment, turns out the old Parser is still working
+        # if not (json_index := load_json_from_file(get_daum_json_index_filepath(master_file_path))):
+        #     return False
+
+        # Generate json index file using old parser (If needed) and load it
+        if not (json_index := load_json_from_file(get_parser_json_index_filepath(master_file_path))):
             return False
 
         show_message(modded_file_path)

@@ -18,7 +18,7 @@ import globals
 import messages as m
 from constants import LATEST, \
     PREVIOUS, MOD_FILE_EXTENSIONS, DEFINITIONS_FOLDER_LOCATION, Mod, MASTER_CONTENT_FOLDERS, \
-    VERSION_REGEX, COMMAND_REGEX, Commands, VERBOSE_OUTPUT, JSON_PARSER_PATH
+    VERSION_REGEX, COMMAND_REGEX, Commands, VERBOSE_OUTPUT
 from mod_functions import define, generate, verify, update
 from mod_functions.generate import all
 from utils import clear_temp_folder, trigger_error, check_valid_folder, load_json_from_file, \
